@@ -175,7 +175,12 @@ def cmd_status(args):
     """Show Koyote product status: GitHub, AI provider, Active Repo, Repo Key, Howl & Hunt."""
     summary = get_active_provider_summary()
     gh_user = _github_identity()
-    gh_status = f"CONNECTED ({gh_user})" if gh_user else ("CONNECTED" if bool(os.environ.get("GITHUB_TOKEN") or os.environ.get("KOYOTE_GITHUB_TOKEN")) else "NOT CONFIGURED")
+    gh_connected = gh_user is not None or bool(
+        os.environ.get("GITHUB_TOKEN")
+        or os.environ.get("KOYOTE_GITHUB_TOKEN")
+        or (os.environ.get("KOYOTE_GITHUB_APP_ID") and os.environ.get("KOYOTE_GITHUB_PRIVATE_KEY"))
+    )
+    gh_status = f"CONNECTED ({gh_user})" if gh_user else ("CONNECTED" if gh_connected else "NOT CONFIGURED")
     
     ai_status = f"CONNECTED ({summary.get('provider')})" if summary.get("configured") else "NOT CONFIGURED"
     
@@ -197,8 +202,8 @@ def cmd_status(args):
     print(f"Active repo:        {active}")
     print(f"Repositories:       {repo_count}")
     print(f"Repository Key:     {repo_key}")
-    print(f"Howl:               {howl_state}")
-    print(f"Hunt:               {hunt_state}")
+    print(f"Hunt (Repair):      {hunt_state}")
+    print(f"Consult (Howl):     {howl_state}")
     print(f"Status:             {index_state}\n")
 
     ws_root = find_workspace_root()
@@ -231,8 +236,12 @@ def cmd_doctor(args):
         tcmd = _detect_test_command(ws_root)
     except Exception:
         tcmd = ""
-    gh_connected = bool(os.environ.get("GITHUB_TOKEN") or os.environ.get("KOYOTE_GITHUB_TOKEN")
-                        or (os.environ.get("KOYOTE_GITHUB_APP_ID") and os.environ.get("KOYOTE_GITHUB_PRIVATE_KEY")))
+    gh_user = _github_identity()
+    gh_connected = gh_user is not None or bool(
+        os.environ.get("GITHUB_TOKEN")
+        or os.environ.get("KOYOTE_GITHUB_TOKEN")
+        or (os.environ.get("KOYOTE_GITHUB_APP_ID") and os.environ.get("KOYOTE_GITHUB_PRIVATE_KEY"))
+    )
     kb_state = "MISSING"
     if indexed:
         try:
@@ -267,7 +276,8 @@ def cmd_doctor(args):
     print("================================================================================")
     print("                 KOYOTE DOCTOR — product readiness                              ")
     print("================================================================================\n")
-    print(f"GitHub:             {'CONNECTED' if gh_connected else 'NOT CONFIGURED — set GITHUB_TOKEN or App credentials'}")
+    gh_disp = f"CONNECTED ({gh_user})" if gh_user else ("CONNECTED" if gh_connected else "NOT CONFIGURED — set GITHUB_TOKEN or App credentials")
+    print(f"GitHub:             {gh_disp}")
     if summary.get("configured"):
         print(f"AI provider:        CONNECTED ({summary.get('provider')} via {summary.get('source')})")
     else:
@@ -277,7 +287,7 @@ def cmd_doctor(args):
     print(f"Knowledge Base:     {kb_state}")
     print(f"Test command:       {tcmd or 'NOT FOUND — verification will fail closed'}")
     print(f"Monitoring:         {mon_str}")
-    print("\nLocal Flow:  koyote check (free) → koyote auth → koyote consult (Howl) → koyote work (Hunt)")
+    print("\nLocal Flow:  koyote check → koyote hunt <finding> (or koyote consult)")
     print("Hosted Flow: Install GitHub App → Choose repos → Auto-index → Connect BYOK → READY")
     print("================================================================================")
 
