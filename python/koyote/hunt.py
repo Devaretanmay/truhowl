@@ -74,6 +74,7 @@ from koyote.test_runner import (
     _run_install,
     _run_tests,
 )
+from koyote.test_feedback import extract_structured_test_feedback
 
 try:
     from koyote.ai_planner import AIPatchPlanner, build_reasoning_context
@@ -1341,10 +1342,12 @@ def run_hunt(
                 cause = interp.cause if interp else "uncertain"
                 audit["decisions"].append(
                     {"attempt": attempt, "decision": f"verification_failed:cause_{cause}"})
+                diag = extract_structured_test_feedback(evidence.output, evidence.exit_code)
                 prior_evidence = (
-                    f"Verification {'has no test command (fail closed)' if not evidence.command else 'failed'}. "
-                    f"AI interpretation cause={cause} rationale={interp.rationale if interp else ''}. "
-                    f"Output:\n{evidence.output[:2000]}")
+                    f"Verification {'has no test command (fail closed)' if not evidence.command else 'failed'}.\n"
+                    f"{diag.format_for_model()}\n"
+                    f"AI interpretation: cause={cause}, rationale={interp.rationale if interp else ''}."
+                )
                 final_patches = []
                 continue
 

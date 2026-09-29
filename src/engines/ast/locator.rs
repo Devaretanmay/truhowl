@@ -150,6 +150,9 @@ fn discover_aliases(source: &str, config: &ScanConfig) -> Vec<(String, String)> 
             if let Some(alias) = match_new_binding(trimmed, &type_prefix) {
                 push_alias(&mut aliases, alias, sdk);
             }
+            if let Some(alias) = match_python_instantiation_binding(trimmed, &type_prefix, sdk) {
+                push_alias(&mut aliases, alias, sdk);
+            }
             if let Some(alias) = match_require_binding(trimmed, sdk) {
                 push_alias(&mut aliases, alias, sdk);
             }
@@ -159,6 +162,24 @@ fn discover_aliases(source: &str, config: &ScanConfig) -> Vec<(String, String)> 
         }
     }
     aliases
+}
+
+/// Match Python client instantiation: `<alias> = <Type>(` or `<alias> = <sdk>.<Type>(`.
+fn match_python_instantiation_binding(line: &str, type_prefix: &str, sdk: &str) -> Option<String> {
+    let (alias, rest) = line.split_once('=')?;
+    let alias = alias.trim();
+    if !is_identifier(alias) {
+        return None;
+    }
+    let rest = rest.trim_start();
+    if rest.starts_with(&format!("{type_prefix}("))
+        || rest.starts_with(&format!("{sdk}.{type_prefix}("))
+        || rest.starts_with(&format!("{type_prefix}Client("))
+        || rest.starts_with(&format!("{sdk}.Client("))
+    {
+        return Some(alias.to_string());
+    }
+    None
 }
 
 fn push_alias(aliases: &mut Vec<(String, String)>, alias: String, sdk: &str) {
@@ -549,6 +570,15 @@ const sub = await s.subscriptions.del('sub_123');
             .collect();
         assert_eq!(method_calls.len(), 1);
         assert!(method_calls[0].alias.is_none());
+    }
+
+    #[test]
+    fn ast_detects_python_instantiation_alias() {
+        let source = "from stripe import StripeClient\nclient = StripeClient('sk_test')\nclient.customers.retrieve('cus_1')\n";
+        let mut cfg = stripe_config();
+        cfg.extensions = vec!["py".into()];
+        let hits = locate_callsites_in_source("pay.py", source, &cfg);
+        assert!(hits.iter().any(|c| c.alias.as_deref() == Some("client")));
     }
 
     #[test]

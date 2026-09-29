@@ -46,55 +46,69 @@ def parse_confidence(text: str) -> str:
 MAX_PROMPT_FILE_CHARS = 12000
 
 
-def bound_file_content(content: str, limit: int = MAX_PROMPT_FILE_CHARS) -> tuple[str, bool]:
-    """Cap file text sent to the model. Returns (text, truncated)."""
+def bound_file_content(
+    content: str,
+    limit: int = MAX_PROMPT_FILE_CHARS,
+    callsite_lines: list[int] | None = None,
+    context_radius: int = 25,
+) -> tuple[str, bool]:
+    """Bound file content sent to the LLM without blindly truncating file middles.
+
+    Preserves file headers (imports, module definitions, setup) and provides
+    windowed context around callsites if file length exceeds the character budget.
+    Returns (text, truncated).
+    """
     if len(content) <= limit:
         return (content, False)
-    return (content[:limit], True)
 
+    lines = content.splitlines(keepends=True)
+    total_lines = len(lines)
+    if total_lines <= 80:
+        return (content[:limit], True)
 
-def ai_followup_for_missed(
-    repo_dir: str,
-    provider_name: str,
-    from_version: str,
-    to_version: str,
-    touched_abs_paths: list[str],
-    impact_files: list[str],
-    migration_details: str = "",
-    changelog_url: str = "",
-    dry_run: bool = False,
-) -> tuple[list[PatchResult], "AIPatchPlanner" | None]:
-    """AI reasoning for affected files the evidence pass surfaced but left unpatched.
+    # 1. Preamble lines: always keep imports and top definitions (lines 1..40)
+    preamble_count = min(40, total_lines)
+    keep_indices: set[int] = set(range(preamble_count))
 
-    Returns ([], None) when nothing is missed or no provider is configured —
-    callers keep their honest refusal path untouched.
-    """
-    touched = set(touched_abs_paths or [])
-    missed = [
-        f for f in (impact_files or [])
-        if os.path.isfile(os.path.join(repo_dir, f))
-        and os.path.abspath(os.path.join(repo_dir, f)) not in touched
-    ]
-    if not missed:
-        return ([], None)
-    planner = AIPatchPlanner.from_env()
-    if planner is None:
-        return ([], None)
-    context = build_reasoning_context(
-        repo_dir, provider_name, from_version, to_version,
-        migration_details, changelog_url)
-    results = planner.plan_and_apply(
-        repo_dir=repo_dir,
-        affected_files=missed,
-        provider_name=provider_name,
-        from_version=from_version,
-        to_version=to_version,
-        migration_details=migration_details,
-        dry_run=dry_run,
-        context=context,
-        changelog_url=changelog_url,
-    )
-    return (results, planner)
+    # 2. Windowed lines around target callsites
+    targets = [line_no - 1 for line_no in (callsite_lines or []) if 0 <= line_no - 1 < total_lines]
+    if not targets:
+        # Fall back to inspecting lines for method calls or common patterns
+        targets = [
+            i for i, line_text in enumerate(lines)
+            if any(k in line_text for k in ("create(", "retrieve(", "update(", "delete(", "api", "client", "request"))
+        ][:15]
+
+    for target in targets:
+        start = max(0, target - context_radius)
+        end = min(total_lines, target + context_radius + 1)
+        keep_indices.update(range(start, end))
+
+    # 3. Assemble windowed blocks with clear gap markers
+    sorted_indices = sorted(keep_indices)
+    assembled_lines: list[str] = []
+    prev_idx = -1
+
+    for idx in sorted_indices:
+        if prev_idx != -1 and idx > prev_idx + 1:
+            omitted = idx - prev_idx - 1
+            assembled_lines.append(
+                f"\n// ... [{omitted} lines omitted for brevity: unaffected by migration (lines {prev_idx + 2}-{idx})] ...\n\n"
+            )
+        assembled_lines.append(lines[idx])
+        prev_idx = idx
+
+    if prev_idx < total_lines - 1:
+        omitted = total_lines - 1 - prev_idx
+        assembled_lines.append(
+            f"\n// ... [{omitted} lines omitted for brevity to end of file (lines {prev_idx + 2}-{total_lines})] ...\n"
+        )
+
+    windowed_text = "".join(assembled_lines)
+    if len(windowed_text) <= limit:
+        return (windowed_text, True)
+
+    return (windowed_text[:limit], True)
 
 
 def build_reasoning_context(
@@ -192,6 +206,13 @@ class AIPatchPlanner:
                 repo_dir, provider_name, from_version, to_version,
                 migration_details, changelog_url)
 
+        if len(affected_files) > 1 and "multi_file_plan" not in context:
+            rel_files = [os.path.relpath(f, repo_dir) if os.path.isabs(f) else f for f in affected_files]
+            context["multi_file_plan"] = (
+                f"Multi-file coordinated migration across {len(affected_files)} files: {', '.join(rel_files)}. "
+                "Ensure caller signatures, return types, test assertions, and configurations remain consistent."
+            )
+
         results = []
         for file_path in affected_files:
             abs_path = file_path if os.path.isabs(file_path) else os.path.join(repo_dir, file_path)
@@ -288,6 +309,12 @@ class AIPatchPlanner:
             sections.append(f"Change details: {context['migration_details']}")
         if context.get("changelog_url"):
             sections.append(f"Vendor guide: {context['changelog_url']}")
+        if context.get("migration_guide_content"):
+            sections.append(f"Authoritative Vendor Migration Guide:\n{context['migration_guide_content']}")
+        if context.get("openapi_diff"):
+            sections.append(f"OpenAPI Schema Breaking Changes:\n{context['openapi_diff']}")
+        if context.get("multi_file_plan"):
+            sections.append(f"Coordinated Multi-File Plan:\n{context['multi_file_plan']}")
         if context.get("test_command"):
             sections.append(f"Repo verification: `{context['test_command']}` must keep passing")
         if context.get("wrappers"):
@@ -345,17 +372,28 @@ class AIPatchPlanner:
             f"File: {os.path.relpath(abs_path, repo_dir)}",
             self._context_text(repo_dir, provider_name, from_version, to_version, context),
         ]
-        shown_content, truncated = bound_file_content(original_content)
+
+        # Extract target callsites for this file to guide windowing
+        rel_path = os.path.relpath(abs_path, repo_dir)
+        target_lines: list[int] = []
+        for cs in context.get("callsites", []):
+            if rel_path in cs or os.path.basename(abs_path) in cs:
+                parts = cs.split(":", 2)
+                if len(parts) >= 2 and parts[1].split()[0].isdigit():
+                    target_lines.append(int(parts[1].split()[0]))
+
+        shown_content, truncated = bound_file_content(original_content, callsite_lines=target_lines)
         if truncated:
             sections.append(
                 f"[File truncated to first {MAX_PROMPT_FILE_CHARS} chars "
-                f"of {len(original_content)} — reason only over shown lines.]")
+                f"of {len(original_content)} (windowed context around callsites) — "
+                f"reason only over shown lines.]")
         user_content = "\n".join(sections) + f"\n\nFile Content:\n```\n{shown_content}\n```\n"
 
         if test_error:
             user_content += (
                 f"\nNOTE: A previous patch attempt caused test failure:\n"
-                f"```\n{test_error[:1500]}\n```\n"
+                f"```\n{test_error[:4000]}\n```\n"
                 f"Please fix the code to resolve this test failure."
             )
 
