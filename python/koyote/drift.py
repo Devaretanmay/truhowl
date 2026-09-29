@@ -169,7 +169,16 @@ def detect_changes(repo_dir: str, provider_name: str | None = None) -> list[Dete
         _from, _to, migration = resolve_migration(
             d["provider"], d.get("declared_version"), d.get("target_version"))
         if migration is not None:
-            source.metadata["breaking_change"] = migration.description
+            desc = migration.description
+            if d["provider"].lower() == "openai":
+                contents = " ".join(str(c.get("line_content", "") or "") for c in callsites)
+                has_completion = "createCompletion" in contents
+                has_chat = "createChatCompletion" in contents
+                if has_completion and not has_chat:
+                    desc = "OpenAI Node SDK v3 to v4 rewrite: createCompletion -> completions.create (preserve prompt semantics)."
+                elif has_chat and not has_completion:
+                    desc = "OpenAI Node SDK v3 to v4 rewrite: createChatCompletion -> chat.completions.create."
+            source.metadata["breaking_change"] = desc
             source.metadata["migration_guide_url"] = migration.changelog_url
         has_pat = bool(migration and migration.rewrites) or len(direct_rewrites_for(repo_dir, d["provider"], _from, _to)) > 0
         if has_valid_credentials():

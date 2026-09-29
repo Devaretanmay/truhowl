@@ -358,6 +358,13 @@ class AIPatchPlanner:
             "config options, or speculative generality. The smallest diff "
             "that fixes the affected lines wins; extra code is a defect.\n"
             "6. Do not refactor, rename, or 'improve' surrounding code.\n"
+            "7. SEMANTIC PRESERVATION INVARIANT: Preserve exact application API semantics.\n"
+            "   - If migrating OpenAI createCompletion({ prompt, ... }), migrate to completions.create({ prompt, ... }). "
+            "Do NOT silently convert prompt completions into chat completions (chat.completions.create with messages) "
+            "unless the original code called createChatCompletion.\n"
+            "   - When migrating createChatCompletion({ messages, ... }), migrate to chat.completions.create({ messages, ... }).\n"
+            "   - Response payload unpacking must match the method: completions.create returns choices[0].text, while "
+            "chat.completions.create returns choices[0].message.content.\n"
             "Emit surgical updates as search-and-replace blocks:\n"
             "<<<<<<< SEARCH\n"
             "exact lines to replace\n"
@@ -393,9 +400,11 @@ class AIPatchPlanner:
 
         if test_error:
             user_content += (
-                f"\nNOTE: A previous patch attempt caused test failure:\n"
+                f"\nNOTE: A previous patch attempt caused verification failure:\n"
                 f"```\n{test_error[:4000]}\n```\n"
-                f"Please fix the code to resolve this test failure."
+                f"IMPORTANT: The sandbox has been reset to the original File Content shown above. "
+                f"You must emit SEARCH/REPLACE blocks for the COMPLETE migration from the original file "
+                f"(including imports, client initialization, method call, and fixing the previous verification error)."
             )
 
         messages = [{"role": "user", "content": user_content}]

@@ -130,7 +130,7 @@ class ProviderRegistry:
             from_version="3.3.0",
             to_version="4.0.0",
             changelog_url="https://github.com/openai/openai-node/discussions/217",
-            description="OpenAI Node SDK v3 to v4 rewrite: createChatCompletion -> chat.completions.create.",
+            description="OpenAI Node SDK v3 to v4 rewrite: createCompletion -> completions.create, createChatCompletion -> chat.completions.create.",
             old_spec_path="trials/fixtures/langchainjs_openai/specs/openai_v3.json",
             new_spec_path="trials/fixtures/langchainjs_openai/specs/openai_v4.json",
             rewrites=[
@@ -151,6 +151,12 @@ class ProviderRegistry:
                     replacement=r'new OpenAI(\1)',
                     file_extensions=[".ts", ".tsx", ".js", ".jsx"],
                     description="Simplify nested new OpenAIApi(new Configuration({...})) to new OpenAI({...}) (v4)",
+                ),
+                RewriteRule(
+                    pattern=r'createCompletion\(',
+                    replacement='completions.create(',
+                    file_extensions=[".ts", ".tsx", ".js", ".jsx", ".py"],
+                    description="Rename createCompletion to completions.create (v4 API)",
                 ),
                 RewriteRule(
                     pattern=r'createChatCompletion\(',

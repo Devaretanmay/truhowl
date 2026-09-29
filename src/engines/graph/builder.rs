@@ -193,7 +193,15 @@ pub fn build_external_dependency_graph(
             let desc = if is_stripe {
                 "Convert integer charge amounts to string coercion for Stripe v13+/v22+ compatibility"
             } else if is_openai {
-                "Migrate createChatCompletion to chat.completions.create for OpenAI v4+ SDK"
+                let has_completion = callsites_for_p.iter().any(|c| c.line_content.contains("createCompletion") || c.matched_pattern.contains("createCompletion"));
+                let has_chat = callsites_for_p.iter().any(|c| c.line_content.contains("createChatCompletion") || c.matched_pattern.contains("createChatCompletion"));
+                if has_completion && !has_chat {
+                    "Migrate createCompletion to completions.create for OpenAI v4+ SDK (preserving prompt semantics)"
+                } else if has_chat && !has_completion {
+                    "Migrate createChatCompletion to chat.completions.create for OpenAI v4+ SDK"
+                } else {
+                    "Migrate OpenAI v3 API to v4 SDK (createCompletion -> completions.create, createChatCompletion -> chat.completions.create)"
+                }
             } else {
                 "Upstream SDK version alignment"
             };

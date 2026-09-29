@@ -75,7 +75,7 @@ fn p(name: &str, pkgs: &[&str], urls: &[&str], methods: &[&str], ver: &str, dead
 pub fn builtin_providers() -> Vec<ProviderMeta> {
     vec![
         p("Stripe", &["stripe", "@stripe/stripe-node"], &["api.stripe.com"], &["charges.create", "paymentIntents.create", "customers.create", "refunds.create"], "2026-02-15", "", "https://docs.stripe.com/upgrades"),
-        p("OpenAI", &["openai", "@openai/openai"], &["api.openai.com"], &["chat.completions.create", "responses.create", "completions.create", "embeddings.create"], "v2", "", "https://platform.openai.com/docs/deprecations"),
+        p("OpenAI", &["openai", "@openai/openai"], &["api.openai.com"], &["chat.completions.create", "responses.create", "completions.create", "embeddings.create"], "4.x", "", "https://platform.openai.com/docs/deprecations"),
         p("Anthropic", &["anthropic", "@anthropic-ai/sdk"], &["api.anthropic.com"], &["messages.create", "completions.create"], "2024-10-22", "", "https://docs.anthropic.com/en/docs/about-claude/model-deprecations"),
         p("Twilio", &["twilio"], &["api.twilio.com"], &["messages.create", "calls.create"], "5.x", "2026-04-28", "https://www.twilio.com/docs/global-infrastructure/api-domain-migration-guide"),
         p("GitHub", &["@octokit/rest", "octokit", "PyGithub"], &["api.github.com"], &[], "2022-11-28", "", "https://docs.github.com/en/rest/overview/api-versions"),

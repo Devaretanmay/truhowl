@@ -231,6 +231,7 @@ class VerifiedRepair:
     reasoning_attempt: int = 1
     model: str = "unknown"
     interpretation_rationale: str = ""
+    verification_tier: str = "behavioral_verified"
     _seal: Any = field(default=None, repr=False, compare=False)
 
     def __post_init__(self) -> None:
@@ -324,6 +325,14 @@ def seal_verified_repair(
     if not files or not unified:
         return None
     rationale = str(getattr(interpretation, "rationale", "") or "")[:2000]
+    cmd_lower = test_command.lower()
+    is_compile_only = (
+        any(k in cmd_lower for k in ("tsc", "type-check", "build", "mypy", "pyright"))
+        and not any(k in cmd_lower for k in ("test", "jest", "pytest", "vitest", "mocha", "cargo test"))
+    )
+    output_text = str(getattr(evidence, "output", "") or "").lower()
+    has_test_runner_output = any(k in output_text for k in ("passed", "test results:", "tests passed", "ok.", "failures:"))
+    verification_tier = "behavioral_verified" if (not is_compile_only or has_test_runner_output) else "compile_verified"
     try:
         return VerifiedRepair(
             finding_id=finding_id,
@@ -338,6 +347,7 @@ def seal_verified_repair(
             reasoning_attempt=reasoning_attempt,
             model=model or "unknown",
             interpretation_rationale=rationale,
+            verification_tier=verification_tier,
             _seal=_SEAL,
         )
     except (TypeError, ValueError):

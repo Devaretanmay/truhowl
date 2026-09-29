@@ -524,6 +524,10 @@ REASONING_SYSTEM = (
     "intended behavior, proposed change, and verification evidence. "
     "Never invent identifiers, APIs, symbols, files, dependencies, behavior, "
     "or tests: reference only what exists in the provided context. "
+    "Semantic Preservation Invariant: Preserve exact application API semantics. "
+    "For example, when migrating OpenAI v3 createCompletion({ prompt }), migrate to "
+    "completions.create({ prompt }), NOT chat.completions.create({ messages }) unless "
+    "the code already used createChatCompletion. "
     "Prefer the smallest semantically correct repair that restores intended "
     "behavior without unrelated changes. Reply as a single JSON object."
 )
@@ -1522,6 +1526,7 @@ def run_hunt(
         audit_path = write_audit(repo_dir, finding.finding_id, {
             **audit,
             "final": "verified",
+            "verification_tier": final_repair.verification_tier,
             "reasoning_summary": final_reasoning.smallest_change,
             "final_interpretation": asdict(final_interp) if final_interp else {},
             "files": promoted,
@@ -1530,6 +1535,7 @@ def run_hunt(
             "model": final_repair.model,
             "drift_basis": finding.basis,
             "evidence_limits": [
+                f"verification tier: {final_repair.verification_tier.upper().replace('_', ' ')}",
                 "coverage relevance: AI-judged, no independent test-target mapping",
                 "failure attribution: not applicable on the green path; "
                 "red-path causes are AI-attributed (no pre-patch baseline)",
@@ -1798,8 +1804,13 @@ def decide_pr(repair: VerifiedRepair, ctx: HuntContext,
 
 def render_hunt_summary(report: HuntReport) -> str:
     if report.success:
+        tier_label = (
+            "COMPILE VERIFIED (static build/typecheck clean, runtime test suite not present)"
+            if (report.verified and getattr(report.verified, "verification_tier", "") == "compile_verified")
+            else "BEHAVIORAL VERIFIED (runtime test suite passed)"
+        )
         lines = [
-            "Verified repair.",
+            f"Verified repair [{tier_label}].",
             f"Finding: {report.finding_id} ({report.provider} "
             f"{report.version_from} -> {report.version_to})",
             f"Files: {', '.join(report.files_modified) or 'none'}",

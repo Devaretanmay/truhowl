@@ -47,7 +47,15 @@ impl ExternalDependencyGraph {
                 let breaking_desc = if is_stripe {
                     "charges.create.amount integer-to-string type coercion (v13+/v22+ breaking drift)".into()
                 } else {
-                    "createChatCompletion deprecated; chat.completions.create migration required (v4+ SDK)".into()
+                    let has_completion = callsites_for_p.iter().any(|c| c.line_content.contains("createCompletion") || c.matched_pattern.contains("createCompletion"));
+                    let has_chat = callsites_for_p.iter().any(|c| c.line_content.contains("createChatCompletion") || c.matched_pattern.contains("createChatCompletion"));
+                    if has_completion && !has_chat {
+                        "createCompletion deprecated; completions.create migration required (v4+ SDK)".into()
+                    } else if has_chat && !has_completion {
+                        "createChatCompletion deprecated; chat.completions.create migration required (v4+ SDK)".into()
+                    } else {
+                        "OpenAI Node SDK v3 to v4 rewrite: createCompletion -> completions.create, createChatCompletion -> chat.completions.create".into()
+                    }
                 };
 
                 at_risk.push(AtRiskItem {
