@@ -54,15 +54,16 @@ AI reasons; native tools provide evidence and execute/verify
 
 ```bash
 koyote auth              # Connect BYOK AI provider (Anthropic, OpenAI, Ollama)
-koyote doctor            # GitHub / AI / Indexed / Knowledge / Tests / Monitoring
-koyote check .           # Read-only drift & impact audit
-koyote consult .         # Consult mode: AI assessment as a GitHub Issue, modifies nothing
-koyote hunt <id>         # Work mode: AI repair from a finding, sandbox verification, PR delivery
+koyote doctor            # Environment, credentials, test runner, repository health
+koyote check .           # Read-only drift & affected usage scan
+koyote hunt <finding>    # Plan, edit, build/test, repair, and prepare/open PR
+koyote consult .         # Report-only: AI assessment as a GitHub Issue, modifies nothing
 ```
 
-Two distinct product modes for your team:
-- **Consult** (`@howl explain` / `koyote consult`): Deep AI reasoning, architectural impact diagnosis, files a GitHub Issue, modifies zero code.
-- **Work** (`@hunt repair` / `koyote work`): Autonomous repair worker, sandbox test verification, delivers a verified PR.
+Canonical product workflow:
+- **Check** (`koyote check`): Detects breaking SDK/API drift, maps affected callsites. Zero tokens, zero writes.
+- **Hunt** (`koyote hunt <finding>`): Autonomous migration repair worker: plans the migration, edits files, executes tests in an isolated sandbox, repairs failures, and opens a verified PR.
+- **Consult** (`koyote consult`): Deep AI reasoning, architectural impact diagnosis, files a GitHub Issue, modifies zero code.
 See [GitHub App behavior](docs/GITHUB_APP.md).
 
 Koyote also watches across connected repositories: a push in one repo is an
@@ -189,7 +190,7 @@ Refusals are loud and empty-handed: a repair that cannot be proven is a repair
 not shipped. When verification fails, scope boundaries are breached, or no test
 runner exists, Koyote rolls back changes in 2ms and refuses to open a PR.
 
-Every commit is gated: **522 Rust + 460 Python tests**, lint-clean.
+Every commit is gated: **523 Rust + 478 Python tests**, lint-clean.
 See the [Validation Guide](docs/VALIDATION_GUIDE.md)
 for the full protocol.
 
