@@ -5,11 +5,11 @@ build-backend = "maturin"
 [project]
 name = "koyote"
 version = "1.1.3"
-description = "Koyote: autonomous software maintenance for systems that change. Detect contract drift, repair, verify, and deliver PRs."
+description = "Autonomous SDK/API migration worker that repairs breaking upgrades and proves the migration works before opening a PR."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "Apache-2.0" }
-keywords = ["ai-agents", "developer-tools", "provenance", "audit", "sandbox", "isolation"]
+keywords = ["sdk-migration", "api-migration", "breaking-changes", "developer-tools", "sandbox", "code-repair"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",

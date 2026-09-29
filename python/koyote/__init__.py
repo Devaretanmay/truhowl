@@ -14,8 +14,11 @@ from . import redact as redact
 from . import pipeline as pipeline
 from . import github as github
 
-from importlib.metadata import version as _package_version
-__version__ = _package_version("koyote")
+try:
+    from importlib.metadata import version as _package_version
+    __version__ = _package_version("koyote")
+except Exception:
+    __version__ = "1.1.3"
 
 __all__ = [
     "Koyote",
