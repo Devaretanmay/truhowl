@@ -2,6 +2,7 @@
 
 import json
 import os
+import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
@@ -187,8 +188,17 @@ class LLMClient:
             method="POST",
         )
 
-        with urllib.request.urlopen(req, timeout=self.config.timeout_seconds) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
+        data = {}
+        for attempt_i in range(4):
+            try:
+                with urllib.request.urlopen(req, timeout=self.config.timeout_seconds) as resp:
+                    data = json.loads(resp.read().decode("utf-8"))
+                break
+            except urllib.error.HTTPError as err:
+                if err.code == 429 and attempt_i < 3:
+                    time.sleep(3.0 * (attempt_i + 1))
+                    continue
+                raise
 
         content = ""
         for block in data.get("content", []):
@@ -231,8 +241,17 @@ class LLMClient:
             method="POST",
         )
 
-        with urllib.request.urlopen(req, timeout=self.config.timeout_seconds) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
+        data = {}
+        for attempt_i in range(4):
+            try:
+                with urllib.request.urlopen(req, timeout=self.config.timeout_seconds) as resp:
+                    data = json.loads(resp.read().decode("utf-8"))
+                break
+            except urllib.error.HTTPError as err:
+                if err.code == 429 and attempt_i < 3:
+                    time.sleep(3.0 * (attempt_i + 1))
+                    continue
+                raise
 
         content = ""
         choices = data.get("choices", [])

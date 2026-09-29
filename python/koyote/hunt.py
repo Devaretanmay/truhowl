@@ -807,9 +807,14 @@ def ai_interpret(client: LLMClient, reasoning: HuntReasoning,
         "Interpret this repair verification evidence. Answer JSON "
         '{"solved":bool,"unrelated_behavior":bool,"assumptions_false":[],'
         '"cause":"hunt|pre_existing|uncertain","needs_more_investigation":bool,'
-        '"rationale":""}. A passing test proves nothing unless it exercised '
-        "the changed behavior; a failure may be pre-existing toolchain state, "
-        "not the patch. Fail closed when uncertain.\n\n"
+        '"rationale":""}. Evaluation rules:\n'
+        "- If the verification command is a build or typecheck command (e.g. tsc, cargo check, npm run build) "
+        "and exits with code 0 without errors, it proves that breaking API symbols, imports, and type errors "
+        "are resolved (set solved=true, unrelated_behavior=false, needs_more_investigation=false).\n"
+        "- If the verification command is a test runner, a passing test proves nothing unless it exercised "
+        "the changed behavior.\n"
+        "- A failure may be pre-existing toolchain state, not the patch.\n"
+        "- Fail closed when uncertain.\n\n"
         f"Proposed change: {reasoning.smallest_change[:1500]}\n"
         f"Assumptions: {json.dumps(reasoning.assumptions)[:1500]}\n"
         f"Command: {evidence.command} exit={evidence.exit_code}\n"
@@ -821,7 +826,8 @@ def ai_interpret(client: LLMClient, reasoning: HuntReasoning,
             messages=[{"role": "user", "content": prompt}],
             system_prompt=(
                 "You are Hunt verifying its own repair. Be skeptical: passing "
-                "tests that did not exercise the change prove nothing."
+                "tests that did not exercise the change prove nothing. "
+                "However, clean typecheck/build exits confirm resolution of compile-time breaking SDK drift."
             ),
         )
         raw = resp.content or ""
@@ -1336,6 +1342,12 @@ def run_hunt(
                     f"Scope violation: {scope_reason}. Changed={changed}. "
                     f"Declared={reasoning.affected_paths}. Test output:\n{evidence.output[:2000]}")
                 final_patches = []
+                try:
+                    _git(sandbox.sandbox_dir, "reset", "--hard", "HEAD")
+                    _git(sandbox.sandbox_dir, "clean", "-fd")
+                except Exception:
+                    pass
+                time.sleep(2.0)
                 continue
 
             if evidence.exit_code != 0 or not evidence.command:
@@ -1349,6 +1361,12 @@ def run_hunt(
                     f"AI interpretation: cause={cause}, rationale={interp.rationale if interp else ''}."
                 )
                 final_patches = []
+                try:
+                    _git(sandbox.sandbox_dir, "reset", "--hard", "HEAD")
+                    _git(sandbox.sandbox_dir, "clean", "-fd")
+                except Exception:
+                    pass
+                time.sleep(2.0)
                 continue
 
             if interp.needs_more_investigation or not interp.solved or interp.unrelated_behavior:
@@ -1359,6 +1377,12 @@ def run_hunt(
                     f"unrelated={interp.unrelated_behavior} rationale={interp.rationale}. "
                     f"Output:\n{evidence.output[:2000]}")
                 final_patches = []
+                try:
+                    _git(sandbox.sandbox_dir, "reset", "--hard", "HEAD")
+                    _git(sandbox.sandbox_dir, "clean", "-fd")
+                except Exception:
+                    pass
+                time.sleep(2.0)
                 continue
 
             # All green: mint the capability token. The sealer DERIVES

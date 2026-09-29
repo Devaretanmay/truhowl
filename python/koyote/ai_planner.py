@@ -23,14 +23,15 @@ from koyote.test_runner import _detect_test_command
 
 
 _BLOCK_REGEX = re.compile(
-    r"<<<<<<< SEARCH\s*\n(.*?)\n=======\s*\n(.*?)\n>>>>>>> REPLACE",
+    r"<<<<<<< SEARCH[^\n]*\n(.*?)\n=======[^\n]*\n(.*?)\n>>>>>>> REPLACE",
     re.DOTALL,
 )
 
 
 def parse_search_replace_blocks(text: str) -> list[tuple[str, str]]:
     """Extract search and replace pairs from model output."""
-    matches = _BLOCK_REGEX.findall(text)
+    normalized = text.replace("\r\n", "\n")
+    matches = _BLOCK_REGEX.findall(normalized)
     return [(search, replace) for search, replace in matches]
 
 
