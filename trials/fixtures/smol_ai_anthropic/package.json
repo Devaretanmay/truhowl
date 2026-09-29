@@ -1,6 +1,0 @@
-{
-  "name": "smol-developer-fixture",
-  "dependencies": {
-    "@anthropic-ai/sdk": "^0.10.0"
-  }
-}

@@ -1,6 +1,0 @@
-{
-  "name": "supabase-auth-fixture",
-  "dependencies": {
-    "@supabase/supabase-js": "^1.35.0"
-  }
-}

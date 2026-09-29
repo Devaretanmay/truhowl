@@ -1,6 +1,0 @@
-{
-  "name": "uploadthing-fixture",
-  "dependencies": {
-    "@clerk/nextjs": "^4.29.0"
-  }
-}

@@ -1,5 +1,4 @@
 pub mod contracts;
-pub mod evidence;
 pub mod inventory;
 pub mod manifest_lockfile;
 mod planner;
@@ -10,10 +9,6 @@ mod types;
 pub mod workflow;
 
 pub use contracts::synthesize_contract_tests;
-pub use evidence::{
-    collect_environment_diagnostics, compare_diffs_semantically, CausalReplayClassification,
-    CommandExecutionRecord, EnvironmentDiagnostics, ReplayEvidence, SemanticDiffMatch,
-};
 pub use inventory::{render_inventory, run_inventory, DepHealth, DiscoveredDep, Inventory};
 pub use manifest_lockfile::{
     detect_package_manager, parse_cargo_lock, parse_package_json_manifest, parse_package_lock_json,
