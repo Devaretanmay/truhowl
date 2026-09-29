@@ -190,7 +190,7 @@ Refusals are loud and empty-handed: a repair that cannot be proven is a repair
 not shipped. When verification fails, scope boundaries are breached, or no test
 runner exists, Koyote rolls back changes in 2ms and refuses to open a PR.
 
-Every commit is gated: **523 Rust + 478 Python tests**, lint-clean.
+Every commit is gated: **521 Rust + 483 Python tests**, lint-clean.
 See the [Validation Guide](docs/VALIDATION_GUIDE.md)
 for the full protocol.
 
