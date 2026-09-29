@@ -184,12 +184,12 @@ koyote work . --provider openai --from v3.28.0 --to v4.0.0 --create-pr --repo ow
 
 ## Proof, not promises
 
-On a real open-source repo (TalkGPT, OpenAI `v3` → `v4`): verified the green base,
-reproduced the breaking bump as a red build, repaired it autonomously, and
-returned the suite to green with zero unintended files touched. Refusals are
-loud and empty-handed — a repair that can't be proven is a repair not shipped.
+Koyote validates repairs against the repository's real test suite.
+Refusals are loud and empty-handed: a repair that cannot be proven is a repair
+not shipped. When verification fails, scope boundaries are breached, or no test
+runner exists, Koyote rolls back changes in 2ms and refuses to open a PR.
 
-Every commit is gated: **516 Rust + 460 Python tests**, lint-clean.
+Every commit is gated: **522 Rust + 460 Python tests**, lint-clean.
 See the [Validation Guide](docs/VALIDATION_GUIDE.md)
 for the full protocol.
 

@@ -206,15 +206,21 @@ class CredentialProxy:
         self._thread = None
         _logger.info("CredentialProxy stopped")
 
-    def set_env(self) -> None:
-        """Set ``HTTP_PROXY`` / ``HTTPS_PROXY`` to route through this proxy."""
+    def set_env(self, set_https: bool = False) -> None:
+        """Set HTTP_PROXY to route through this proxy.
+
+        Note: HTTP CONNECT tunneling is unsupported; clients should direct HTTP
+        requests to the proxy or use origin-form requests. HTTPS_PROXY is not
+        set by default to prevent clients failing on unhandled CONNECT tunnels.
+        """
         proxy_url = f"http://{self.host}:{self.port}"
+        vars_to_set = ["HTTP_PROXY", "http_proxy"]
+        if set_https:
+            vars_to_set.extend(["HTTPS_PROXY", "https_proxy"])
         for var in ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy"):
             self._saved_env[var] = os.environ.get(var)
-        os.environ["HTTP_PROXY"] = proxy_url
-        os.environ["HTTPS_PROXY"] = proxy_url
-        os.environ["http_proxy"] = proxy_url
-        os.environ["https_proxy"] = proxy_url
+        for var in vars_to_set:
+            os.environ[var] = proxy_url
 
     def restore_env(self) -> None:
         """Restore environment variables to pre-proxy state."""

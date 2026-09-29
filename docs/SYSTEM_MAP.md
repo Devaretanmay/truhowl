@@ -89,7 +89,7 @@ flowchart TD
 | clippy | 0 warnings | `cargo clippy --all-targets` |
 | Tier-1 controlled fixtures | done | trials/fixtures (stripe, openai, clerk, aws, sentry) |
 | Tier-2 live demos | done | purpose-built demo repos |
-| Tier-3 untouched upstream | 1 done (TalkGPT), quickstart attempted→rejected on RED rule | protocol enforced, not bent |
+| Tier-3 untouched upstream | In progress (reproducible real-repo benchmark suite) | fail-closed verification enforced |
 | Hosted daemon | code-ready (Dockerfile.app + DEPLOY.md), image unbuilt here | CI builds it |
 
 ## 6. Deliberately not built

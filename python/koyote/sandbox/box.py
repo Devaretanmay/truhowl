@@ -9,6 +9,7 @@ AgentKoyote sets ``auto_modules=True`` to enable all three.
 import logging
 import os
 import shutil
+import subprocess
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -160,7 +161,12 @@ class Box:
             return {}
         return self.compressor.compressed_outputs
 
-    def enter(self, block_network: bool | None = None, sandbox: bool | None = None) -> bool:
+    def enter(
+        self,
+        block_network: bool | None = None,
+        sandbox: bool | None = None,
+        enforce: bool = False,
+    ) -> bool:
         if self._state != STATE_CREATED:
             raise RuntimeError(f"Cannot enter from state: {self._state}")
         self._state = STATE_READY
@@ -179,6 +185,10 @@ class Box:
                     else:
                         supported = bool(supported_info)
                     if not supported:
+                        if enforce:
+                            raise RuntimeError(
+                                f"Enforced sandboxing requested, but platform is unsupported ({supported_info}). Fail-closed."
+                            )
                         _logger.warning("Sandbox not available on this platform")
                     else:
                         applied = apply_fn(self.workdir, self.config.block_network)
@@ -186,13 +196,35 @@ class Box:
                         if self._sandbox_applied:
                             _logger.info("Sandbox applied (network_blocked=%s)", self.config.block_network)
                         else:
+                            if enforce:
+                                raise RuntimeError("Enforced sandboxing failed to apply. Fail-closed.")
                             _logger.warning("Sandbox could not be applied")
                 except Exception as e:
+                    if enforce:
+                        raise RuntimeError(f"Enforced sandboxing failed: {e}") from e
                     _logger.warning("Sandbox unavailable, continuing without: %s", e)
         self._state = STATE_RUNNING
         self._started_at = time.time()
         emit("box.entered", box_id=self.box_id, sandbox_applied=self._sandbox_applied)
         return self._sandbox_applied
+
+    def run_command(
+        self,
+        cmd: str | list[str],
+        timeout: int = 120,
+        enforce_sandbox: bool = False,
+        extra_env: dict[str, str] | None = None,
+    ) -> subprocess.CompletedProcess:
+        """Run a command confined in the sandbox without restricting the orchestrator."""
+        from ..test_runner import run_sandboxed_command
+        return run_sandboxed_command(
+            cmd,
+            cwd=self.workdir,
+            timeout=timeout,
+            block_network=self.config.block_network,
+            enforce=enforce_sandbox or (self._sandbox_applied and enforce_sandbox),
+            extra_env=extra_env,
+        )
 
     def apply_policy(self, config) -> None:
         """Records the current compartment's policy so the SandboxEnforcer can read it."""

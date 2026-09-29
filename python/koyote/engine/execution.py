@@ -102,13 +102,19 @@ class Execution:
         Koyote-*, Volf-*, Sheepdog-*, or Compart-* names; readers should accept
         all variants (see SPEC.md, "Compatibility").
         """
-        sandbox_status = "clean"
+        # Determine sandbox provenance truthfully per SPEC.md
+        # SPEC.md: "clean, blocked (policy violations occurred), or none (unsandboxed)"
+        sandboxed = self.policy.get("sandbox", True) if isinstance(self.policy, dict) else True
         blocked_count = sum(
             1 for ev in self.events
             if "blocked" in ev.get("name", "").lower() or "denied" in ev.get("name", "").lower()
         )
-        if blocked_count > 0:
+        if not sandboxed:
+            sandbox_status = "none"
+        elif blocked_count > 0:
             sandbox_status = "blocked"
+        else:
+            sandbox_status = "clean"
 
         origin = (
             "agent"
@@ -123,6 +129,8 @@ class Execution:
             f"Agent-Compartment: {self.compartment_id}",
             f"Agent-Sandbox: {sandbox_status}",
         ]
+        if isinstance(self.policy, dict) and self.policy.get("isolation"):
+            lines.append(f"Execution-Isolation: {self.policy['isolation']}")
         return "\n".join(lines)
 
     def to_dict(self) -> dict[str, Any]:

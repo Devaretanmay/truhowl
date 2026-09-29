@@ -739,7 +739,6 @@ def verify_fixes(
         return analysis
 
     test_cmd = _detect_test_command(ctx.workdir)
-    test_exit_code = 0
     test_duration_ms = 1
 
     if test_cmd:
@@ -752,12 +751,14 @@ def verify_fixes(
         except Exception:
             test_exit_code = 1
         test_duration_ms = max(1, int((time.time() - test_start) * 1000))
+    else:
+        test_exit_code = -1
 
-    analysis.test_command = test_cmd
+    analysis.test_command = test_cmd or ""
     analysis.test_exit_code = test_exit_code
     analysis.test_duration_ms = test_duration_ms
 
-    if test_exit_code == 0:
+    if test_cmd and test_exit_code == 0:
         analysis.verified = True
     else:
         analysis.verified = False

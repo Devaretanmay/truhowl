@@ -1075,7 +1075,13 @@ class LocalGitHubPublisher:
             f"fix: hunt repair {repair.provider} {repair.version_from} -> {repair.version_to}\n\n"
             f"Finding: {repair.finding_id}\n"
             f"Verified: `{repair.test_command}` exit 0\n"
-            f"Audit: .koyote/hunt/{repair.finding_id}/audit.json"
+            f"Audit: .koyote/hunt/{repair.finding_id}/audit.json\n\n"
+            f"Agent-Origin: agent\n"
+            f"Agent-Agent: koyote@1.1.3\n"
+            f"Agent-Execution: hunt_{repair.finding_id}\n"
+            f"Agent-Compartment: hunt\n"
+            f"Agent-Sandbox: none\n"
+            f"Execution-Isolation: git-worktree"
         )
         try:
             pushed = git_commit_and_push(repo_dir, abs_files, branch, commit_msg)

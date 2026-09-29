@@ -75,7 +75,75 @@ def _run_install(repo_dir: str, timeout: int = 120) -> subprocess.CompletedProce
     return subprocess.run(cmd, cwd=repo_dir, capture_output=True, text=True, timeout=timeout)
 
 
-def _run_tests(repo_dir: str, test_cmd: str, timeout: int = 120) -> subprocess.CompletedProcess:
+def run_sandboxed_command(
+    cmd: str | list[str],
+    cwd: str,
+    timeout: int = 120,
+    block_network: bool = False,
+    enforce: bool = False,
+    extra_env: dict[str, str] | None = None,
+) -> subprocess.CompletedProcess:
+    """Execute a child process with kernel sandbox confinement.
+
+    The sandbox restriction is applied via preexec_fn in the child process
+    after fork and before exec, ensuring the calling orchestrator remains outside
+    the irreversible sandbox.
+    """
+    from koyote._core import sandbox_apply, sandbox_check_supported
+
+    supported_info = sandbox_check_supported()
+    is_supported = str(supported_info.get("supported", "false")).lower() == "true"
+
+    if enforce and not is_supported:
+        raise RuntimeError(
+            f"Enforced sandboxing requested, but platform '{supported_info.get('platform')}' "
+            f"does not support kernel sandboxing ({supported_info.get('details')}). Fail-closed."
+        )
+
+    preexec = None
+    if is_supported:
+        abs_cwd = os.path.abspath(cwd)
+
+        def _preexec():
+            applied = sandbox_apply(abs_cwd, block_network)
+            if not applied and enforce:
+                raise RuntimeError("Failed to apply kernel sandbox in child process")
+
+        preexec = _preexec
+
+    env = dict(os.environ)
+    if extra_env:
+        env.update(extra_env)
+
+    use_shell = isinstance(cmd, str)
+    return subprocess.run(
+        cmd,
+        shell=use_shell,
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+        preexec_fn=preexec,
+        env=env,
+    )
+
+
+def _run_tests(
+    repo_dir: str,
+    test_cmd: str,
+    timeout: int = 120,
+    sandbox: bool = False,
+    block_network: bool = False,
+    enforce_sandbox: bool = False,
+) -> subprocess.CompletedProcess:
+    if sandbox:
+        return run_sandboxed_command(
+            test_cmd,
+            cwd=repo_dir,
+            timeout=timeout,
+            block_network=block_network,
+            enforce=enforce_sandbox,
+        )
     return subprocess.run(
         test_cmd,
         shell=True,
