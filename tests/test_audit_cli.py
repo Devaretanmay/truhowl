@@ -73,6 +73,31 @@ def test_cli_at_hunt_alias():
     assert "KOYOTE AUTONOMOUS MAINTENANCE LOOP" in result.stdout
 
 
+def test_cli_top_level_help_focus():
+    result = _run_koyote_cli(["--help"])
+    assert result.returncode == 0
+    assert "Autonomous SDK/API Migration Worker" in result.stdout
+    assert "koyote check" in result.stdout
+    assert "koyote hunt" in result.stdout
+    assert "koyote consult" in result.stdout
+    assert "--workflow" not in result.stdout
+    assert "--run" not in result.stdout
+
+
+def test_cli_hunt_help():
+    result = _run_koyote_cli(["hunt", "--help"])
+    assert result.returncode == 0
+    assert "usage: koyote hunt" in result.stdout
+    assert "--provider" in result.stdout
+    assert "--finding" in result.stdout
+
+
+def test_cli_hunt_detect():
+    result = _run_koyote_cli(["hunt", "trials/fixtures/taxonomy_stripe/", "--detect"])
+    assert result.returncode == 0
+    assert "KOYOTE AUTONOMOUS MAINTENANCE LOOP" in result.stdout
+
+
 
 
 def test_audit_drops_string_only_drift(tmp_path):

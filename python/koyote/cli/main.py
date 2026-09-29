@@ -166,8 +166,9 @@ def cmd_init(args):
     print("READY")
     print()
     print("Koyote can now:")
+    print("  Check   — detect breaking SDK/API drift (koyote check)")
+    print("  Hunt    — repair breaking upgrades and verify PRs (koyote hunt <finding>)")
     print("  Consult — find and explain maintenance issues (koyote consult)")
-    print("  Work    — repair, verify, and open PRs (koyote work)")
 
 
 def cmd_status(args):
@@ -2020,6 +2021,29 @@ def cmd_fix(args):
     """Run autonomous repair: finding-based Hunt when given an <id>, else provider flow."""
     if _hunt_finding_requested(args):
         return cmd_hunt(args)
+    if getattr(args, "command", "") in ("hunt", "@hunt") and not getattr(args, "detect", False):
+        repo_dir = _resolve_hunt_repo(getattr(args, "root_dir", ".") or ".")
+        try:
+            from koyote import hunt as hunt_agent
+            findings = hunt_agent.list_findings(repo_dir)
+            if len(findings) == 1:
+                setattr(args, "finding", findings[0].finding_id)
+                return cmd_hunt(args)
+            elif len(findings) > 1:
+                print("================================================================================")
+                print("                         KOYOTE HUNT: MULTIPLE FINDINGS                         ")
+                print("================================================================================\n")
+                print(f"Multiple actionable findings detected in {repo_dir}:\n")
+                for f in findings:
+                    print(f"  [{f.finding_id}] {f.provider} {f.version_from} -> {f.version_to}")
+                    print(f"      {f.summary[:100]}\n")
+                print("Run:")
+                for f in findings:
+                    print(f"  koyote hunt {f.finding_id}")
+                print("\n================================================================================")
+                return
+        except Exception:
+            pass
     return cmd_maintain(args)
 
 
@@ -2379,15 +2403,6 @@ def cmd_maintain(args):
     print("================================================================================")
 
 
-def cmd_audit(args):
-    """Day-0 External-Change Dependency Audit and Risk Register."""
-    root_path = os.path.abspath(args.path)
-    output = run_audit(
-        repo_root=root_path,
-        output_format=args.format,
-        write_graph=args.write_graph,
-    )
-    print(output)
 
 
 def cmd_graph(args):
@@ -2504,29 +2519,35 @@ def main():
     # Direct agent shortcut: `koyote claude` / `koyote opencode` / `koyote codex`
     if len(sys.argv) > 1 and sys.argv[1] in _KNOWN_AGENTS:
         agent_name = sys.argv[1]
+        sys.stderr.write(f"[DEPRECATED] Direct agent wrapping ('koyote {agent_name}') is deprecated; Koyote is focused on autonomous SDK/API migrations.\n")
         user_argv = sys.argv[2:]
         ws_root = find_workspace_root() or os.path.abspath(".")
         sys.exit(_launch_agent(agent_name, ws_root, user_argv=user_argv))
 
     description = textwrap.dedent("""\
-        Koyote: Autonomous External-Change Intelligence & Controlled Execution
+        Koyote: Autonomous SDK/API Migration Worker
+        Repairs breaking upgrades and proves the migration works before opening a PR.
 
-        Core Commands:
-          koyote auth                     Connect & configure BYOK AI provider (OpenAI, Anthropic, Groq, etc.)
-          koyote connect [owner/repo]     Connect GitHub account, choose repository, and issue Repository Key
-          koyote active [owner/repo]      Show or switch the active repository working context
-          koyote status                   Show current workspace and repository connection status
-          koyote @howl [path]             Howl (Consult): AI reasoning, file GitHub Issue, touch zero code
-          koyote @hunt [path]             Hunt (Work): autonomous AI repair, sandbox-verify, deliver PR
-          koyote disconnect [owner/repo]  Disconnect repository registration and clear active working context
+        Workflow:
+          koyote check [path]             Detect breaking SDK/API drift and show affected usage
+          koyote hunt <finding|provider>  Plan, edit, build, test, repair, and prepare/open PR
+          koyote consult [path]           Analyze drift and file a GitHub issue (report-only)
 
-        Diagnostic & Utilities:
-          koyote doctor                   Verify GitHub App, AI provider, indexing, and test runner readiness
-          koyote init [path]              Initialize .koyote workspace metadata in current repository
-          koyote app serve                Run autonomous GitHub App webhook daemon
+        Configuration & Diagnostics:
+          koyote auth                     Connect & configure AI provider credentials (OpenAI, Anthropic, Groq, etc.)
+          koyote doctor                   Verify environment, credentials, test runner, and repository health
+          koyote status                   Show current workspace, repository context, and provider status
+
+        Advanced / Plumbing:
+          koyote graph [path]             Inspect external dependency graph and callsites
+          koyote diff                     Inspect unapplied/recorded agent execution changes
+          koyote undo                     Reverse the last applied change set
+          koyote providers                List supported providers and migration contract catalog
+          koyote app                      Manage GitHub App webhook server daemon
     """)
 
     parser = argparse.ArgumentParser(
+        prog="koyote",
         description=description,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -2534,13 +2555,13 @@ def main():
         "-w", "--workflow",
         dest="workflow_flag",
         default=None,
-        help="Create a new workflow branch (e.g. koyote -w invoice-pipeline)",
+        help=argparse.SUPPRESS,
     )
     parser.add_argument(
         "--run",
         dest="run_flag",
         default=None,
-        help="Run a workflow DAG directly (e.g. koyote --run invoice-pipeline)",
+        help=argparse.SUPPRESS,
     )
     subparsers = parser.add_subparsers(dest="command", help=argparse.SUPPRESS)
 
@@ -2711,47 +2732,41 @@ def main():
     explain_p = subparsers.add_parser("explain", help="Explain why Koyote classified a finding as affected, unaffected, or unresolved")
     explain_p.add_argument("finding_id", help="Finding or pattern identifier")
 
-    check_p = subparsers.add_parser("check", help="Scan repository for external API integrations and breaking drift")
+    check_p = subparsers.add_parser(
+        "check",
+        aliases=["scan", "audit"],
+        help="Scan repository for external API integrations and breaking drift",
+    )
     check_p.add_argument("path", nargs="?", default=".", help="Repository root path (default: .)")
     check_p.add_argument("--format", default="cli", choices=["cli", "github-issue", "issue", "markdown", "md", "json"], help="Output format (default: cli)")
     check_p.add_argument("--write-graph", action="store_true", help="Persist .koyote/graph.json")
 
-    scan_p = subparsers.add_parser("scan", help="Alias for check")
-    scan_p.add_argument("path", nargs="?", default=".", help="Repository root path (default: .)")
-    scan_p.add_argument("--format", default="cli", choices=["cli", "github-issue", "issue", "markdown", "md", "json"], help="Output format (default: cli)")
-    scan_p.add_argument("--write-graph", action="store_true", help="Persist .koyote/graph.json")
-
-    audit_p = subparsers.add_parser("audit", help="Alias for check")
-    audit_p.add_argument("path", nargs="?", default=".", help="Repository root path (default: .)")
-    audit_p.add_argument("--format", default="cli", choices=["cli", "github-issue", "issue", "markdown", "md", "json"], help="Output format (default: cli)")
-    audit_p.add_argument("--write-graph", action="store_true", help="Persist .koyote/graph.json")
-
-    work_p = subparsers.add_parser(
-        "work",
-        aliases=["fix", "maintain", "update", "hunt", "@hunt"],
-        help="Work mode (Hunt): repair from a finding id or provider, sandbox-verify, deliver PR",
+    hunt_p = subparsers.add_parser(
+        "hunt",
+        aliases=["work", "fix", "maintain", "update", "@hunt"],
+        help="Autonomous migration repair: plan, edit, build/test, repair, and prepare/open PR",
     )
-    work_p.add_argument("root_dir", nargs="?", default=".", help="Finding id (from koyote check) or codebase directory")
-    work_p.add_argument("--provider", default="auto", help="Target API provider (e.g. stripe, openai, anthropic, or auto)")
-    work_p.add_argument("--from", dest="from_version", default=None, help="Current dependency version")
-    work_p.add_argument("--to", dest="to_version", default=None, help="Target dependency version")
-    work_p.add_argument("--detect", action="store_true", help="Detect installed API providers in repository")
-    work_p.add_argument("--create-pr", action="store_true", help="Open GitHub Pull Request via API")
-    work_p.add_argument("--show-pr", action="store_true", help="Display the Trust PR body")
-    work_p.add_argument("--repo", default=None, help="GitHub repository name (owner/repo) for PR creation")
-    work_p.add_argument("--json", action="store_true", help="Output machine-readable JSON")
-    work_p.add_argument("--model", default=None, help="BYOK LLM model name (e.g. claude-3-5-sonnet-20241022, gpt-4o)")
-    work_p.add_argument("--api-key", default=None, help="BYOK LLM API key (or set ANTHROPIC_API_KEY/OPENAI_API_KEY)")
-    work_p.add_argument("--base-url", default=None, help="Custom LLM base URL (e.g. for local Ollama/vLLM)")
-    work_p.add_argument("--finding", default=None, help="Hunt finding id from koyote check (e.g. stripe-a1b2c3)")
-    work_p.add_argument("--issue", default=None, help="GitHub issue number backing the finding")
-    work_p.add_argument("--yes", action="store_true", help="Auto-approve PR creation after verified repair")
-    work_p.add_argument("--max-iterations", type=int, default=3, help="Max AI-directed repair iterations (default: 3)")
+    hunt_p.add_argument("root_dir", nargs="?", default=".", help="Finding id (from koyote check) or codebase directory")
+    hunt_p.add_argument("--provider", default="auto", help="Target API provider (e.g. stripe, openai, anthropic, or auto)")
+    hunt_p.add_argument("--from", dest="from_version", default=None, help="Current dependency version")
+    hunt_p.add_argument("--to", dest="to_version", default=None, help="Target dependency version")
+    hunt_p.add_argument("--detect", action="store_true", help="Detect installed API providers in repository")
+    hunt_p.add_argument("--create-pr", action="store_true", help="Open GitHub Pull Request via API")
+    hunt_p.add_argument("--show-pr", action="store_true", help="Display the Trust PR body")
+    hunt_p.add_argument("--repo", default=None, help="GitHub repository name (owner/repo) for PR creation")
+    hunt_p.add_argument("--json", action="store_true", help="Output machine-readable JSON")
+    hunt_p.add_argument("--model", default=None, help="BYOK LLM model name (e.g. claude-3-5-sonnet-20241022, gpt-4o)")
+    hunt_p.add_argument("--api-key", default=None, help="BYOK LLM API key (or set ANTHROPIC_API_KEY/OPENAI_API_KEY)")
+    hunt_p.add_argument("--base-url", default=None, help="Custom LLM base URL (e.g. for local Ollama/vLLM)")
+    hunt_p.add_argument("--finding", default=None, help="Hunt finding id from koyote check (e.g. stripe-a1b2c3)")
+    hunt_p.add_argument("--issue", default=None, help="GitHub issue number backing the finding")
+    hunt_p.add_argument("--yes", action="store_true", help="Auto-approve PR creation after verified repair")
+    hunt_p.add_argument("--max-iterations", type=int, default=3, help="Max AI-directed repair iterations (default: 3)")
 
     consult_p = subparsers.add_parser(
         "consult",
         aliases=["howl", "@howl"],
-        help="Consult mode (Howl): AI reasoning, file GitHub Issue, modify nothing",
+        help="Analyze drift and file a GitHub issue (report-only, modifies zero code)",
     )
     consult_p.add_argument("path", nargs="?", default=".", help="Repository root path (default: .)")
     consult_p.add_argument("--repo", default=None, help="GitHub repository name (owner/repo) for the Issue")
