@@ -45,7 +45,7 @@ print(compressed_log)
 * **Compartment outputs**: `Box.enable_compression()` (auto-enabled on
   `AgentTruhowl`) compresses large compartment results above the size
   threshold; `compressed_outputs` exposes the distilled text.
-* **Hunt verification evidence** uses bounded raw capture instead
+* **Repair verification evidence** uses bounded raw capture instead
   (test output capped per attempt, diff previews capped per PR body),
   so repair evidence is never lossy-compressed before the model or
   the reviewer sees it.

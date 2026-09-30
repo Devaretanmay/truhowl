@@ -44,7 +44,7 @@ Shared AI Reasoning Engine (Customer BYOK Provider)
 AI reasons; native tools provide evidence and execute/verify
         ↓
 ┌─────────────────────────────────┬─────────────────────────────────┐
-│ Consult (Howl Persona)          │ Work (Hunt Persona)             │
+│ Consult (advisory)              │ Migrate (repair)                │
 │ Find & explain problems.        │ Find, repair, verify & open PR. │
 │ Deep AI impact analysis.        │ Kernel sandbox + real tests.    │
 │ Files advisory GitHub Issue.    │ Delivers verified Trust PR.     │
@@ -165,11 +165,11 @@ Active Graph Edges:      28
 
 ## 3. Autonomous Repair (`truhowl migrate`)
 
-Every `truhowl check` finding carries an ID. Hunt starts from that finding —
-rebuilding live context (branch, exact SHA, active work, callsites, tests,
-verified memory) — then reasons with AI, authors the patch with AI, verifies
-it in an isolated sandbox worktree, and refuses loudly when correctness
-cannot be established:
+Every `truhowl check` finding carries an ID. `truhowl migrate` starts from
+that finding — rebuilding live context (branch, exact SHA, affected
+callsites, tests, verified memory) — then reasons with AI, authors the
+patch with AI, verifies it in an isolated sandbox worktree, and refuses
+loudly when correctness cannot be established:
 
 ```bash
 truhowl check .                # read-only audit; note the finding ID
@@ -180,7 +180,7 @@ truhowl migrate . --provider stripe
 truhowl migrate . --provider openai --from v3.28.0 --to v4.0.0 --create-pr --repo owner/repo
 ```
 
-### What Hunt guarantees:
+### What migrate guarantees:
 1. **AI-Authored Repair**: AI reasons about affected callsites, generates targeted source changes, and validates impact. No deterministic rewrite rules, templates, or regex fixers author code — ever.
 2. **Isolated Verification**: Every repair executes in a sandbox worktree at the exact SHA with the project's real test command. No fake passes, no forced exits.
 3. **Zero Blast Radius**: Verifies that 0 unintended files were modified; scope violations fail closed.

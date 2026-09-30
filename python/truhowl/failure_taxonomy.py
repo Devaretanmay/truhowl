@@ -133,7 +133,6 @@ def classify_from_audit(audit: dict[str, Any]) -> FailureClassification:
     compiler error it produced.
     """
     secondary: list[str] = []
-    evidence: list[str] = []
 
     if audit.get("final") == "verified":
         return FailureClassification(category="VERIFIED", detail="sealed verified repair")
@@ -169,8 +168,6 @@ def classify_from_audit(audit: dict[str, Any]) -> FailureClassification:
     if not audit.get("lifecycle"):
         return FailureClassification(category=OTHER, detail="empty audit record")
     if not any(str(x).startswith("patch_generated") for x in audit["lifecycle"]):
-        if any(str(x).startswith("patch_generated") for x in audit["lifecycle"]):
-            pass
         return FailureClassification(
             category=AUTHOR_NO_PATCH,
             detail="no candidate produced before verification",
@@ -295,7 +292,6 @@ def build_failure_report(records: list[dict[str, Any]]) -> dict[str, Any]:
                     per_unit[unit] += 1
                     break
     verified = counts.get("VERIFIED", 0)
-    total = len(records) or 1
     return {
         "schema": "truhowl.migration_failures.v1",
         "cases": len(records),

@@ -11,7 +11,7 @@ CONVENTIONAL DEPENDENCY BUMP
 Dependabot / Renovate -> Version bumped in lockfile -> CI breaks -> Human reads migration docs
 
 WITH TRUHOWL
-Upstream API/SDK Drift -> Truhowl (Check callsites -> Hunt repairs -> Sandbox verifies) -> Developer Trust PR
+Upstream API/SDK Drift -> Truhowl (Check callsites -> Migrate repairs -> Sandbox verifies) -> Developer Trust PR
 ```
 
 ---
@@ -33,7 +33,7 @@ truhowl check . --format=github-issue
 
 ---
 
-## 2. Test Scenario 2: Advisory Consult Assessment (Howl)
+## 2. Test Scenario 2: Advisory Consult Assessment
 
 Run deep diagnostic reasoning on detected contract drift without modifying source files.
 
@@ -49,7 +49,7 @@ truhowl consult .
 
 ---
 
-## 3. Test Scenario 3: Autonomous Repair & Sandbox Verification (Hunt)
+## 3. Test Scenario 3: Autonomous Repair & Sandbox Verification
 
 Execute a targeted repair starting from a specific finding ID, verified in an isolated workspace with your repository's real test suite.
 
@@ -74,7 +74,7 @@ truhowl migrate stripe-df9562     # Full reasoning -> repair -> sandbox -> verif
 Verify that unproven repairs or broken test runs never open a PR or leave corrupt state behind.
 
 ### What You Observe:
-- If tests fail or no test suite is configured, Truhowl refuses loudly: *"Hunt could not safely verify this repair. No PR was created."*
+- If tests fail or no test suite is configured, Truhowl refuses loudly: *"could not safely verify this repair. No PR was created."*
 - Unverified changes are rolled back in 2ms using pre-execution BLAKE3 hash snapshots.
 - Failure evidence is recorded in `.truhowl/knowledge/` avoid-lists to prevent repeating the failed repair pattern.
 - A detailed tamper-evident audit log is preserved at `.truhowl/hunt/<id>/audit.json`.

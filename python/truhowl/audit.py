@@ -132,7 +132,7 @@ def render_audit_cli(summary: dict[str, Any]) -> str:
             lines.append("")
 
     lines.append("=" * 80)
-    lines.append("Run `truhowl fix <path> --provider <name>` to execute autonomous migration.")
+    lines.append("Run `truhowl migrate <path> --provider <name>` to execute autonomous migration.")
     lines.append("=" * 80)
     return "\n".join(lines)
 
@@ -148,7 +148,7 @@ def render_audit_github_issue(summary: dict[str, Any]) -> str:
         lines.append("| Provider | Detected Package | Current -> Target | Active Callsites | Breaking Drift | Autonomous Action |")
         lines.append("| :--- | :--- | :--- | :--- | :--- | :--- |")
         for item in at_risk:
-            lines.append(f"| **{item['provider_name']}** | `{item['package_name']}` | `{item['current_version']}` -> `{item['target_version']}` | **{item['callsites_count']} callsites** ({len(item['affected_files'])} files) | {item['breaking_change']} | `truhowl fix --provider {item['provider_name'].lower()}` [MERGE_READY] |")
+            lines.append(f"| **{item['provider_name']}** | `{item['package_name']}` | `{item['current_version']}` -> `{item['target_version']}` | **{item['callsites_count']} callsites** ({len(item['affected_files'])} files) | {item['breaking_change']} | `truhowl migrate --provider {item['provider_name'].lower()}` [MERGE_READY] |")
         lines.append("")
 
     watchlist = summary.get("watchlist", [])

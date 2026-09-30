@@ -191,6 +191,6 @@ def render_consult_issue(items: list[dict]) -> str:
         lines.append(f"Confidence: {item.get('confidence', 'high')}")
         lines.append("")
     lines.append("No code was modified.")
-    lines.append("— Howl, Consult bot")
+    lines.append("— Truhowl, Consult bot")
     lines.append("-----------------------------------------")
     return "\n".join(lines)

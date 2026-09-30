@@ -131,16 +131,16 @@ Low-level process execution runner that applies kernel sandbox (Seatbelt / Landl
 
 ---
 
-## 5. Hunt Autonomous Repair
+## 5. Migrate Autonomous Repair
 
-Hunt starts from a `truhowl check` finding ID and runs the full
+Migrate starts from a `truhowl check` finding ID and runs the full
 reasoning → repair → sandbox → verification lifecycle. AI authors every
 semantic change; deterministic code provides evidence and execution only.
 
 ### `from truhowl.hunt import run_hunt, list_findings, resolve_finding`
 - `list_findings(repo_dir) -> List[HuntFinding]`: live re-detection; IDs derive from repo-relative paths so spellings (`/tmp/x` vs `/private/tmp/x`) resolve identically.
 - `resolve_finding(repo_dir, ref)`: accepts a finding ID, provider name, or `issue:<n>` reference. Stored IDs are hints; context is always rebuilt live.
-- `run_hunt(repo_dir, finding_ref, create_pr=False, github_repo=None, auto_approve_pr=False, max_iterations=3, ports=None, lock_timeout_s=120.0) -> HuntReport`: bounded AI-directed iterations; fails closed with no PR unless a sealed repair verifies green and scope-clean. One Hunt per repository at a time (repo-level lock); concurrent attempts serialize or refuse loudly.
+- `run_hunt(repo_dir, finding_ref, create_pr=False, github_repo=None, auto_approve_pr=False, max_iterations=3, ports=None, lock_timeout_s=120.0) -> HuntReport`: bounded AI-directed iterations; fails closed with no PR unless a sealed repair verifies green and scope-clean. One migrate run per repository at a time (repo-level lock); concurrent attempts serialize or refuse loudly.
 
 ### `from truhowl.hunt_ports import AIAuthoredPatch, VerifiedRepair, seal_ai_patch, seal_verified_repair, HuntPorts`
 - `AIAuthoredPatch` (frozen, sealed): constructible only via `seal_ai_patch()`; carries `author="ai"`, model identity, diff, and admission provenance.

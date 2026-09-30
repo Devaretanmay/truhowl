@@ -6,7 +6,7 @@ active developer work in another connected repository.
 ```text
 api-service/feature-payments push
   → observe → reason → candidate → confirm
-  → Howl Issue on admin (affected work)
+  → Advisory Issue on admin (affected work)
 ```
 
 ## Core invariant
@@ -32,7 +32,7 @@ produces a user-visible notification. Transient impact retracts silently.
 4. **Confirm.** Quiet-period stability (rapid pushes coalesce; the sweep
    evaluates the latest head only), PR-open fast path, merge fast path, or
    high-confidence fast path.
-5. **Notify.** Howl files exactly one Issue on the **affected** repository
+5. **Notify.** Truhowl files exactly one advisory Issue on the **affected** repository
    naming the affected branch/work, source work, contract, confidence, and
    "No code was modified." An open PR on the affected work gets a link
    comment; the Issue stays the source of truth. Re-confirmation updates the
@@ -41,8 +41,8 @@ produces a user-visible notification. Transient impact retracts silently.
 ## Active work
 
 Active work is a branch with recent pushes and/or an open PR. A branch
-without a PR is fully trackable. Hunt never runs from push impact by
-default; repair requires explicitly enabled Hunt policy and follows the
+without a PR is fully trackable. Migrate never runs from push impact by
+default; repair requires explicitly enabled migrate policy and follows the
 normal AI-authored, sandbox-verified PR flow.
 
 ## State scope

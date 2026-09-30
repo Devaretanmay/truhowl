@@ -119,7 +119,7 @@ def test_consult_opens_issue_without_modifying(tmp_path, monkeypatch):
     cli_main.cmd_consult(args)
     assert opened["repo"] == "acme/backend"
     assert "No code was modified." in opened["body"]
-    assert "— Howl, Consult bot" in opened["body"]
+    assert "— Truhowl, Consult bot" in opened["body"]
     assert 'del(' in open(os.path.join(dst, "src", "billing.ts")).read()
 
 

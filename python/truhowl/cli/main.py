@@ -172,7 +172,7 @@ def cmd_init(args):
 
 
 def cmd_status(args):
-    """Show Truhowl product status: GitHub, AI provider, Active Repo, Repo Key, Howl & Hunt."""
+    """Show Truhowl product status: GitHub, AI provider, Active Repo, Repo Key, Consult & Migrate."""
     summary = get_active_provider_summary()
     gh_user = _github_identity()
     gh_connected = gh_user is not None or bool(
@@ -267,9 +267,9 @@ def cmd_doctor(args):
         pass
 
     if daemon_running:
-        mon_str = "ACTIVE — Daemon live on :8080 (Howl hunting)"
+        mon_str = "ACTIVE — Daemon live on :8080 (advisory watch active)"
     elif monitoring == "ACTIVE":
-        mon_str = "CONFIGURED (Howl hunting — repos ready; run `truhowl app serve` to listen for webhooks)"
+        mon_str = "CONFIGURED (advisory watch ready — repos ready; run `truhowl app serve` to listen for webhooks)"
     else:
         mon_str = "NOT ACTIVE (run `truhowl app serve` to listen for webhooks)"
 
@@ -607,7 +607,7 @@ def cmd_connect(args):
         record = register_repository(repo_name, workdir=workdir)
         print(f"\n[OK] Repository connected: {repo_name}")
         print(f"  Repository Key: {record['repo_key']} (team-shared)")
-        print(f"  Howl: {record['howl_state']} | Hunt: {record['hunt_state']}")
+        print(f"  Consult: {record['howl_state']} | Migrate: {record['hunt_state']}")
         print(f"  Indexing repository contracts & callsites for {repo_name}...")
         try:
             run_audit(repo_root=workdir, output_format="cli", write_graph=True)
@@ -2298,7 +2298,7 @@ def _hunt_finding_requested(args) -> bool:
 
 
 def _resolve_hunt_repo(raw: str) -> str:
-    """Resolve the repository checkout for a Hunt run (active context aware)."""
+    """Resolve the repository checkout for a migrate run (active context aware)."""
     if raw and raw != "." and os.path.isdir(os.path.abspath(raw)):
         return os.path.abspath(raw)
     root_dir = os.path.abspath(".")
@@ -2311,11 +2311,12 @@ def _resolve_hunt_repo(raw: str) -> str:
 
 
 def cmd_hunt(args):
-    """Hunt: autonomous repair starting from an identified Truhowl finding.
+    """Migrate: autonomous repair starting from an identified Truhowl finding.
 
-    Usage: truhowl hunt <id> [--create-pr] [--repo owner/repo]
+    Usage: truhowl migrate <id> [--create-pr] [--repo owner/repo]
+    (deprecated alias: truhowl hunt <id>)
 
-    The finding is only the starting point: Hunt reconstructs full context,
+    The finding is only the starting point: migrate reconstructs full context,
     reasons with AI, authors the patch with AI, verifies in an isolated
     sandbox, and fails closed when correctness cannot be established.
     """
@@ -2476,7 +2477,7 @@ def cmd_consult(args):
     title = f"[Truhowl Consult] {len(items)} maintenance issue(s) in {repo}"
     resp = client.create_issue(repo=repo, title=title, body=body, labels=["truhowl", "consult"])
     url = resp.get("html_url") if isinstance(resp, dict) else None
-    print(f"Howl consulted {len(items)} issue(s); no code was modified.")
+    print(f"Truhowl Consult filed {len(items)} advisory issue(s); no code was modified.")
     print(f"[ISSUE OPENED] {url}" if url else "[ISSUE OPENED]")
     print()
     print(body)
@@ -2513,7 +2514,7 @@ def cmd_app(args):
         print(f"Healthcheck:             http://localhost:{args.port}/health")
         print(f"Secret Enforced:         {sec_msg}")
         print("Repo checkouts:          managed cache (clone on install, pull on sight)")
-        print(f"Background watch:        {'Howl hunting every ' + str(watch_every) + 's' if watch_every else 'OFF (pass --watch SECONDS)'}\n")
+        print(f"Background watch:        {'Advisory watch every ' + str(watch_every) + 's' if watch_every else 'OFF (pass --watch SECONDS)'}\n")
         print("Press Ctrl+C to stop daemon.\n")
         print("================================================================================")
         if watch_every:
@@ -2600,7 +2601,7 @@ def cmd_maintain(args):
     print(f"Version Migration:       {report.from_version} -> {report.to_version}")
     print(f"Files Scanned/Patched:   {report.files_scanned} scanned, {report.files_modified} modified")
     repair_path_label = {
-        "ai-reasoning": "AI-authored (Hunt reasoning with evidence)",
+        "ai-reasoning": "AI-authored (migrate reasoning with evidence)",
         "none": "none (refused)",
     }.get(report.repair_path, report.repair_path)
     print(f"Repair Path:             {repair_path_label}")
@@ -2616,7 +2617,7 @@ def cmd_maintain(args):
         print("Action required:       Run `truhowl auth` to enable AI repair.")
     if not report.success and report.test_exit_code != 0:
         print("Rollback:                APPLIED (snapshot restored, no changes left on disk)")
-    print(f"Maintenance Outcome:     {'SUCCESS (VERIFIED GREEN) — Hunt' if report.success else 'REFUSED / INCOMPLETE'}\n")
+    print(f"Maintenance Outcome:     {'SUCCESS (VERIFIED GREEN) — Migrate' if report.success else 'REFUSED / INCOMPLETE'}\n")
 
     if report.patch_results:
         print("--- Patch Breakdown ---")
@@ -3003,7 +3004,7 @@ def main():
     hunt_p.add_argument("--model", default=None, help="BYOK LLM model name (e.g. claude-3-5-sonnet-20241022, gpt-4o)")
     hunt_p.add_argument("--api-key", default=None, help="BYOK LLM API key (or set ANTHROPIC_API_KEY/OPENAI_API_KEY)")
     hunt_p.add_argument("--base-url", default=None, help="Custom LLM base URL (e.g. for local Ollama/vLLM)")
-    hunt_p.add_argument("--finding", default=None, help="Hunt finding id from truhowl check (e.g. stripe-a1b2c3)")
+    hunt_p.add_argument("--finding", default=None, help="Migration finding id from truhowl check (deprecated alias; use truhowl migrate) (e.g. stripe-a1b2c3)")
     hunt_p.add_argument("--issue", default=None, help="GitHub issue number backing the finding")
     hunt_p.add_argument("--yes", action="store_true", help="Auto-approve PR creation after verified repair")
     hunt_p.add_argument("--max-iterations", type=int, default=3, help="Max AI-directed repair iterations (default: 3)")

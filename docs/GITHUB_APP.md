@@ -62,7 +62,7 @@ PRs touching only `ignore_paths`, or carrying an `exclude_labels` label, are ski
 
 New installations start in `consult`: accurate Issues build trust in the reasoning before anyone grants repair authority. Flip one line to `work` when ready — the engine never changes.
 
-## 5. Two Product Modes: Consult & Work (Personas: Howl & Hunt)
+## 5. Two Product Modes: Consult & Migrate (advisory & repair)
 
 Truhowl cleanly defines its product abstractions:
 - **Consult (`@howl` / `truhowl consult`)**: Explains maintenance problems with deep AI reasoning. For any detected maintenance problem (dependency drift, contract breaking bump, external change), Consult files a **GitHub Issue** detailing what changed, what is affected, why, what should change, and what must NOT change. When invoked on a PR (`@howl`), it provides an advisory impact breakdown on the PR thread. Consult is strictly read-only: its GitHub client possesses read-only permissions and **never modifies files, never commits, and never opens PRs**.

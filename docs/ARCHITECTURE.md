@@ -31,22 +31,22 @@ The sole author of reviews, assessments, and code repairs
 AI reasons; native tools provide evidence and execute/verify
 ┌────────────────────────┴────────────────────────┐
 ↓                                                 ↓
-CONSULT (Howl Persona)                            WORK (Hunt Persona)
+CONSULT (advisory)                                  MIGRATE (repair)
 Find & explain maintenance problems               Find, repair, verify & deliver PR
 Deep AI impact analysis                           Surgical AI patch generation
 GitHub ISSUE filed                                Kernel sandbox + real test suite
 Zero files touched                                Evidence (BLAKE3) & Trust PR
 ```
 
-## 1b. Product Modes: Consult vs Work (Personas: Howl & Hunt)
+## 1b. Product Modes: Consult vs Migrate (advisory & repair)
 
 Truhowl cleanly separates **Consult** and **Work** as its primary product abstractions:
 - **Consult (`@howl explain` / `truhowl consult`)**: Finds and explains maintenance problems with deep AI reasoning. Explains what changed upstream, what is actually affected across internal callsites, why, what should change, and what must NOT change. Files an advisory **GitHub Issue** (or responds on an existing PR thread). Never touches files, never commits, and never opens PRs.
 - **Migrate (`truhowl migrate <id>`)**: The autonomous maintenance worker. Starts from a finding ID, rebuilds live context, reasons with AI, authors the patch with AI, verifies in an isolated sandbox worktree at the exact SHA with the project's real test command, and opens a **GitHub PR** only for sealed, green, scope-clean repairs. Anything else fails closed with no PR.
 
-## 1c. Hunt internals (ports + sealed provenance)
+## 1c. Repair internals (ports + sealed provenance)
 
-Hunt's core loop (`truhowl.hunt.run_hunt`) talks only to capability ports
+The repair loop (`truhowl.hunt.run_hunt`) talks only to capability ports
 (`truhowl.hunt_ports`): `ContextProvider / RepairReasoner / PatchAuthor /
 SandboxProvider / Verifier / RepairInterpreter / PRPublisher`. Deterministic
 code provides evidence and execution; it cannot author repairs.
@@ -57,7 +57,7 @@ identity, diff, and admission provenance) and `VerifiedRepair` (mintable
 only via `seal_verified_repair`, which derives acceptance from sealed
 patches, real command + exit 0, convinced interpretation, and its own
 scope evaluation). Promotion re-checks seal + sandbox containment;
-`decide_pr` accepts only the token. One Hunt holds a repo-level lock
+`decide_pr` accepts only the token. One repair run holds a repo-level lock
 (`.truhowl/hunt.lock`) at a time.
 
 ## 2. Core types

@@ -34,6 +34,7 @@ from __future__ import annotations
 import difflib
 import hashlib
 import json
+import logging
 import os
 import shutil
 import subprocess
@@ -108,6 +109,8 @@ except Exception:  # pragma: no cover
 
 MAX_ITERATIONS = 3
 HUNT_DIRNAME = "hunt"
+
+_logger = logging.getLogger("truhowl.hunt")
 
 _EVIDENCE_KINDS = (
     "observed_fact",

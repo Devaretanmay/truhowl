@@ -53,7 +53,7 @@ def test_doctor_ready_after_index(tmp_path):
     assert "Knowledge Base:     READY" in res.stdout
 
 
-def test_doctor_monitoring_names_howl(tmp_path, monkeypatch):
+def test_doctor_monitoring_configured(tmp_path, monkeypatch):
     env = _env(tmp_path)
     monkeypatch.setenv("TRUHOWL_INSTALLATIONS_DIR", str(tmp_path / "inst"))
     record_installation_event(
@@ -61,7 +61,7 @@ def test_doctor_monitoring_names_howl(tmp_path, monkeypatch):
         {"acme/backend": {"state": REPO_READY}})
     res = _run(["doctor"], env)
     assert res.returncode == 0
-    assert "Howl hunting" in res.stdout
+    assert "advisory watch ready" in res.stdout
 
 
 def test_app_serve_requires_secret(tmp_path):
