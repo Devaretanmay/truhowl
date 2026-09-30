@@ -34,6 +34,8 @@ def _ok_report(repo_dir):
         unintended_files_modified=0, blast_radius_verified=True,
         test_exit_code=0, test_duration_ms=10,
         unified_diff="diff --git a/b", trust_pr_body="body",
+        replay_exit_code=0, replay_command="npm test",
+        patch_hash="abc123", verification_tier="behavioral_verified",
     )
 
 
@@ -82,7 +84,7 @@ def test_run_repo_verified(monkeypatch, tmp_path):
                         lambda **kw: _ok_report(kw["repo_dir"]))
     case = svc.watch(str(tmp_path), "stripe", "11.18.0", "13.0.0", [FIXTURE])
     key = case.repos[0].repo_key
-    out = svc.run_repo(str(tmp_path), case.case_id, key)
+    out = svc.run_repo(str(tmp_path), case.case_id, key, confirmed=True)
     assert out["state"] == m.VERIFIED
     text = svc.explain_case(str(tmp_path), case.case_id)
     assert "verified" in text
@@ -90,6 +92,8 @@ def test_run_repo_verified(monkeypatch, tmp_path):
 
 
 def test_run_repo_pr_ready(monkeypatch, tmp_path):
+    from truhowl.agent import automation
+
     monkeypatch.chdir(tmp_path)
 
     def _pr(**kw):
@@ -100,7 +104,10 @@ def test_run_repo_pr_ready(monkeypatch, tmp_path):
 
     monkeypatch.setattr("truhowl.maintenance.run_maintenance_cycle", _pr)
     case = svc.watch(str(tmp_path), "stripe", "11.18.0", "13.0.0", [FIXTURE])
-    out = svc.run_repo(str(tmp_path), case.case_id, case.repos[0].repo_key, create_pr=True)
+    # Publishing requires the DELIVER policy; a flag alone is never enough.
+    automation.set_mode(str(tmp_path), automation.DELIVER)
+    out = svc.run_repo(str(tmp_path), case.case_id, case.repos[0].repo_key,
+                       create_pr=True, confirmed=True)
     assert out["state"] == m.PR_READY
     assert out["pr_url"].endswith("/pull/1")
 
@@ -111,7 +118,7 @@ def test_run_repo_refused(monkeypatch, tmp_path):
                         lambda **kw: _fail_report(kw["repo_dir"]))
     monkeypatch.setattr("truhowl.test_runner._detect_test_command", lambda p: "npm test")
     case = svc.watch(str(tmp_path), "stripe", "11.18.0", "13.0.0", [FIXTURE])
-    out = svc.run_repo(str(tmp_path), case.case_id, case.repos[0].repo_key)
+    out = svc.run_repo(str(tmp_path), case.case_id, case.repos[0].repo_key, confirmed=True)
     assert out["state"] == m.REFUSED
     assert "tests failed" in out["reason"]
     assert len(svc.cases_needing_attention(str(tmp_path))) == 1
@@ -124,7 +131,7 @@ def test_run_repo_needs_attention_without_tests(monkeypatch, tmp_path):
                         lambda **kw: _fail_report(kw["repo_dir"]))
     monkeypatch.setattr("truhowl.test_runner._detect_test_command", lambda p: "")
     case = svc.watch(str(tmp_path), "stripe", "11.18.0", "13.0.0", [FIXTURE])
-    out = svc.run_repo(str(tmp_path), case.case_id, case.repos[0].repo_key)
+    out = svc.run_repo(str(tmp_path), case.case_id, case.repos[0].repo_key, confirmed=True)
     assert out["state"] == m.NEEDS_ATTENTION
 
 
@@ -135,9 +142,28 @@ def test_run_repo_no_usage_refused(tmp_path, monkeypatch):
     (repo / "src" / "main.py").write_text("print('hello')\n")
     (repo / "package.json").write_text('{"name": "t", "dependencies": {}}')
     case = svc.watch(str(tmp_path), "stripe", "11.18.0", "13.0.0", [str(repo)])
-    out = svc.run_repo(str(tmp_path), case.case_id, case.repos[0].repo_key)
+    out = svc.run_repo(str(tmp_path), case.case_id, case.repos[0].repo_key, confirmed=True)
     assert out["state"] == m.REFUSED
     assert "nothing to migrate" in out["reason"]
+
+
+def test_run_repo_fabricated_success_without_replay_refused(monkeypatch, tmp_path):
+    """A success report without clean-room replay evidence can never verify."""
+    monkeypatch.chdir(tmp_path)
+
+    def _no_replay(**kw):
+        rep = _ok_report(kw["repo_dir"])
+        rep.replay_exit_code = -1
+        rep.replay_command = ""
+        rep.patch_hash = ""
+        return rep
+
+    monkeypatch.setattr("truhowl.maintenance.run_maintenance_cycle", _no_replay)
+    case = svc.watch(str(tmp_path), "stripe", "11.18.0", "13.0.0", [FIXTURE])
+    out = svc.run_repo(str(tmp_path), case.case_id, case.repos[0].repo_key, confirmed=True)
+    assert out["state"] == m.REFUSED
+    stored = svc.get_case(str(tmp_path), case.case_id)
+    assert stored["repos"][0]["state"] == m.REFUSED
 
 
 def test_list_cases_filter(tmp_path, monkeypatch):

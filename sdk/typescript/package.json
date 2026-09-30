@@ -1,6 +1,6 @@
 {
   "name": "@truhowl/sdk",
-  "version": "1.1.3",
+  "version": "1.2.0",
   "description": "TypeScript SDK for Truhowl - AST analysis, contract verification & kernel-isolated execution",
   "main": "index.js",
   "types": "index.d.ts",

@@ -36,7 +36,9 @@ ACTIONABLE_STATES = frozenset({REFUSED, NEEDS_ATTENTION})
 
 _TRANSITIONS: dict[str, frozenset[str]] = {
     DETECTED: frozenset({ANALYZING}),
-    ANALYZING: frozenset({PLANNING, REFUSED}),
+    # Analysis can conclude the change is not automatable, or that policy
+    # forbids automating it right now — both are "needs attention".
+    ANALYZING: frozenset({PLANNING, REFUSED, NEEDS_ATTENTION}),
     PLANNING: frozenset({REPAIRING, REFUSED, NEEDS_ATTENTION}),
     REPAIRING: frozenset({VERIFYING, REFUSED}),
     VERIFYING: frozenset({VERIFIED, REFUSED, NEEDS_ATTENTION}),
@@ -219,6 +221,7 @@ class AgentStore:
     verified: list[dict[str, Any]] = field(default_factory=list)
     refusals: list[dict[str, Any]] = field(default_factory=list)
     pull_requests: list[dict[str, Any]] = field(default_factory=list)
+    delivery: dict[str, Any] = field(default_factory=dict)
 
 
 def store_path(workspace_root: str) -> str:
@@ -238,7 +241,8 @@ def load_store(workspace_root: str) -> AgentStore:
         return AgentStore()
     store = AgentStore()
     for k in ("org", "repos", "dependencies", "changes", "usages", "cases",
-              "plans", "attempts", "evidence", "verified", "refusals", "pull_requests"):
+              "plans", "attempts", "evidence", "verified", "refusals", "pull_requests",
+              "delivery"):
         if k in raw:
             setattr(store, k, raw[k])
     return store

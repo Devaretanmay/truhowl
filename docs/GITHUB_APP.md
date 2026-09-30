@@ -1,15 +1,18 @@
-# Truhowl GitHub App: Customer Onboarding & Bot Behavior
+# Truhowl GitHub App: Onboarding & Bot Behavior
 
 > One agent, two authorities. `Consult` explains and files Issues. `Work` repairs and opens PRs. The reasoning engine is identical; only what it may touch differs.
 
-## Customer Onboarding (Zero Infrastructure Setup)
+> **Status:** the GitHub App is **self-hosted**. You run the webhook server
+> (`truhowl app serve`) and provide the App credentials; Truhowl does not yet
+> operate a hosted control plane, so there is no `app.truhowl.dev` to install
+> from. Everything described below is implemented and testable locally.
 
-For developers and engineering teams, adding Truhowl to a GitHub repository is completely automated:
+## Onboarding (self-hosted, no PEM juggling per repository)
 
 ```text
 GitHub
   ↓
-Install Truhowl GitHub App on repo
+Install your Truhowl GitHub App on a repo
   ↓
 Choose repository
   ↓
@@ -20,7 +23,11 @@ Connect AI provider reasoning key (BYOK)
 Repository status: READY
 ```
 
-Developers **never** generate private keys, download PEM files, or configure webhook secrets. The hosted GitHub App manages repository permissions directly.
+Repository-level onboarding generates no private keys, downloads no PEM files,
+and requires no per-repository webhook secrets: one App installation covers the
+repositories you select, and permissions are granted by GitHub at install time.
+Running the App itself requires the App credentials (App ID + private key) as
+environment configuration.
 
 ---
 

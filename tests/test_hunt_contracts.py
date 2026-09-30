@@ -271,6 +271,8 @@ def _seal_kwargs(sandbox, patches, **overrides):
         "must_not_change": [],
         "reasoning_attempt": 1,
         "model": "test-model",
+        # Clean-room replay evidence is mandatory for every verified path.
+        "replay_evidence": _evidence(),
     }
     kw.update(overrides)
     return kw
@@ -324,6 +326,85 @@ def test_token_direct_construction_revalidates():
         hp.VerifiedRepair(finding_id="x", provider="p", version_from="1",
                            version_to="2", files=["a.py"], unified_diff="d",
                            test_command="pytest -q", test_exit_code=0)
+
+
+# ── Verification parity: no alternate lighter verified path ───────────────
+
+def test_seal_refuses_without_replay_evidence(tmp_path):
+    """A green first run without a clean-room replay can never mint a token.
+
+    This is the regression that closed Hunt's "fall back to primary evidence
+    when replay evidence is absent" shortcut. Both the Hunt sealer and the
+    service path must require replay; anything else is a lighter tier of
+    truth that the hosted product could accidentally inherit.
+    """
+    sandbox = str(tmp_path / "sand")
+    os.makedirs(sandbox)
+    assert hp.seal_verified_repair(
+        **_seal_kwargs(sandbox, [_sealed_in(sandbox)], replay_evidence=None)) is None
+
+
+def test_seal_refuses_failed_replay_evidence(tmp_path):
+    sandbox = str(tmp_path / "sand")
+    os.makedirs(sandbox)
+    assert hp.seal_verified_repair(
+        **_seal_kwargs(sandbox, [_sealed_in(sandbox)],
+                       replay_evidence=_evidence(exit_code=1))) is None
+    assert hp.seal_verified_repair(
+        **_seal_kwargs(sandbox, [_sealed_in(sandbox)],
+                       replay_evidence=_evidence(command=""))) is None
+
+
+def test_hunt_sealer_and_service_path_share_one_contract(tmp_path):
+    """Both paths must agree on acceptance for identical evidence.
+
+    If these ever diverge, one of them is an alternate verified path.
+    """
+    from truhowl.verification import service as vs
+
+    cases = [
+        dict(test_command="pytest -q", test_exit_code=0, replay_command="pytest -q",
+             replay_exit_code=0, patch_hash="h", scope_ok=True),
+        dict(test_command="pytest -q", test_exit_code=1, replay_command="pytest -q",
+             replay_exit_code=0, patch_hash="h", scope_ok=True),
+        dict(test_command="pytest -q", test_exit_code=0, replay_command="",
+             replay_exit_code=0, patch_hash="h", scope_ok=True),
+        dict(test_command="", test_exit_code=0, replay_command="pytest -q",
+             replay_exit_code=0, patch_hash="h", scope_ok=True),
+        dict(test_command="pytest -q", test_exit_code=0, replay_command="pytest -q",
+             replay_exit_code=1, patch_hash="h", scope_ok=True),
+        dict(test_command="pytest -q", test_exit_code=0, replay_command="pytest -q",
+             replay_exit_code=0, patch_hash="", scope_ok=True),
+        dict(test_command="pytest -q", test_exit_code=0, replay_command="pytest -q",
+             replay_exit_code=0, patch_hash="h", scope_ok=False),
+    ]
+    for case in cases:
+        verdict = hp.check_verification_contract(**case)
+        service_result = vs.VerificationResult(
+            verified=verdict.ok, test_command=case["test_command"],
+            test_exit_code=case["test_exit_code"],
+            replay_command=case["replay_command"],
+            replay_exit_code=case["replay_exit_code"],
+            patch_hash=case["patch_hash"], scope_ok=case["scope_ok"])
+        try:
+            vs.require_verified(service_result)
+            service_ok = True
+        except ValueError:
+            service_ok = False
+        assert verdict.ok is service_ok, f"paths disagree on {case}"
+
+
+def test_tier_grading_is_shared():
+    """Compile-only vs behavioral grading is one implementation."""
+    import inspect
+
+    from truhowl.verification import service as vs
+
+    assert "tier_for" in inspect.getsource(vs._tier_for)
+    assert hp.tier_for("tsc --noEmit", "Compilation complete") == "compile_verified"
+    assert hp.tier_for("tsc --noEmit", "12 passed") == "behavioral_verified"
+    assert hp.tier_for("pytest -q", "") == "behavioral_verified"
+    assert vs._tier_for("tsc --noEmit", "") == hp.tier_for("tsc --noEmit", "")
 
 
 def test_sealer_signature_takes_no_caller_booleans():

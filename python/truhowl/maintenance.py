@@ -12,7 +12,6 @@ from truhowl.ai_planner import AIPatchPlanner, build_reasoning_context
 from truhowl.drift import detect_drift  # noqa: F401
 from truhowl.formatters import run_style_formatter
 from truhowl.github.trust_pr import generate_trust_pr_markdown, TrustPRMetadata
-from truhowl.git_ops import git_commit_and_push, gh_create_pr
 from truhowl.maintenance_agents import analyze_impact
 from truhowl.patch_writer import (
     discover_aliases, instantiate_alias_rules, PatchResult,
@@ -28,6 +27,7 @@ from truhowl.test_runner import (
     _run_install,
     _run_tests,
 )
+from truhowl.verification.service import begin as verify_begin, seal as verify_seal
 from blake3 import blake3
 
 @dataclass
@@ -50,6 +50,14 @@ class MaintenanceRunReport:
     pr_number: int | None = None
     error: str | None = None
     repair_path: str = "none"
+    # Canonical verification evidence: no VERIFIED without replay.
+    replay_exit_code: int = -1
+    replay_command: str = ""
+    patch_hash: str = ""
+    verification_tier: str = "unverified"
+    # Delivery is separate from verification and never downgrades it.
+    delivery_status: str = "not-requested"
+    delivery_error: str = ""
 
 
 
@@ -127,6 +135,8 @@ def run_maintenance_cycle(
     ai_planner = None
     quarantine_error: str | None = None
     applied_rewrites = list(rewrites)
+    verify_session = None
+    seal_result = None
 
     if decision.strategy == "AI":
         ai_planner = AIPatchPlanner.from_env(api_key=llm_api_key, model=llm_model, base_url=llm_base_url)
@@ -168,6 +178,9 @@ def run_maintenance_cycle(
                 reason_ctx = build_reasoning_context(
                     repo_dir, provider_name, actual_from, actual_to,
                     migration_desc, changelog_url)
+                # Canonical baseline: captured before any repair touches files.
+                verify_session = verify_begin(
+                    repo_dir, sorted(target_files or []))
                 ai_results = ai_planner.plan_and_apply(
                     repo_dir=repo_dir,
                     affected_files=sorted(list(target_files)),
@@ -261,9 +274,31 @@ def run_maintenance_cycle(
                     patch_results = retry_results
                     unified_diff = "\n".join(r.unified_diff for r in patch_results if r.unified_diff)
 
-    if test_exit_code != 0:
+    # Canonical clean-room replay: no VERIFIED without it. The seal
+    # restores baseline, re-applies the candidate exactly, re-verifies,
+    # and checks scope/hash. Refusal leaves the baseline restored.
+    seal_error: str | None = None
+    if test_exit_code == 0 and files_modified > 0 and verify_session is not None:
+        seal_result = verify_seal(verify_session, test_cmd or "",
+                                  scope_allow=sorted({
+                                      os.path.relpath(p, repo_dir)
+                                      for p in modified_paths
+                                  }))
+        if not seal_result.verified:
+            seal_error = seal_result.reason
+            snapshotter.restore()
+            if patch_results:
+                record_failure(
+                    repo_dir, provider_name, actual_from, actual_to,
+                    f"clean-room seal refused ({seal_error})",
+                    [os.path.relpath(p, repo_dir) for p in modified_paths],
+                )
+            files_modified = 0
+            unified_diff = ""
+
+    if test_exit_code != 0 or seal_error is not None:
         snapshotter.restore()
-        if patch_results:
+        if patch_results and seal_error is None:
             record_failure(
                 repo_dir, provider_name, actual_from, actual_to,
                 f"verification failed ({test_cmd or 'no test command'}, exit {test_exit_code})",
@@ -297,7 +332,9 @@ def run_maintenance_cycle(
     )
     pr_body = generate_trust_pr_markdown(meta)
 
-    success = blast_radius_verified and test_exit_code == 0 and files_modified > 0 and quarantine_error is None
+    success = (blast_radius_verified and test_exit_code == 0 and files_modified > 0
+               and quarantine_error is None and seal_error is None
+               and seal_result is not None and seal_result.verified)
 
     if success:
         record_migration_history(repo_dir, {
@@ -347,37 +384,27 @@ def run_maintenance_cycle(
         except Exception:
             pass
 
+    from truhowl.delivery.service import NOT_REQUESTED, publish_verified
+    delivery_status = NOT_REQUESTED
+    delivery_error = ""
     pr_url = None
     pr_number = None
-    if create_pr and github_repo and files_modified > 0:
-        branch_name = f"truhowl/{p_spec.name}-v{actual_to.replace('.', '-')}"
-        commit_msg = (
-            f"migrate: {p_spec.display_name} {actual_from} -> {actual_to}\n\n"
-            f"Detected and patched by Truhowl autonomous maintenance engine.\n"
-            f"Rules applied:\n" + "\n".join(f"- {d}" for d in all_rules)
+    if create_pr and success:
+        delivery = publish_verified(
+            repo_dir=repo_dir, provider_display=p_spec.display_name,
+            version_from=actual_from, version_to=actual_to,
+            modified_paths=modified_paths, rules=all_rules,
+            trust_pr_body=pr_body, github_repo=github_repo,
+            github_client=github_client,
         )
-        pushed = git_commit_and_push(repo_dir, modified_paths, branch_name, commit_msg)
-
-        if pushed:
-            pr_title = f"truhowl: migrate {p_spec.display_name} {actual_from} -> {actual_to}"
-            pr_url = gh_create_pr(github_repo, branch_name, pr_title, pr_body)
-            if pr_url:
-                try:
-                    pr_number = int(pr_url.rstrip("/").split("/")[-1])
-                except Exception:
-                    pass
-
-        if not pr_url and github_client:
-            pr_resp = github_client.create_pull_request(
-                repo=github_repo,
-                title=f"fix(deps): upgrade {p_spec.display_name} to {actual_to}",
-                body=pr_body,
-                head_branch=branch_name,
-                labels=["truhowl-maintenance", "verified-green"],
-            )
-            if pr_resp.get("html_url"):
-                pr_url = pr_resp["html_url"]
-                pr_number = pr_resp.get("number")
+        delivery_status = delivery.status
+        delivery_error = delivery.error
+        pr_url = delivery.pr_url
+        pr_number = delivery.pr_number
+    elif create_pr and not success:
+        # Requested but nothing verified to publish. Verification stands
+        # on its own; delivery is simply not requested on failure.
+        delivery_status = NOT_REQUESTED
 
     return MaintenanceRunReport(
         success=success,
@@ -398,4 +425,11 @@ def run_maintenance_cycle(
         pr_number=pr_number,
         error=quarantine_error,
         repair_path="ai-reasoning" if decision.strategy == "AI" else "none",
+        replay_exit_code=(seal_result.replay_exit_code if seal_result else -1),
+        replay_command=(seal_result.replay_command if seal_result else ""),
+        patch_hash=(seal_result.patch_hash if seal_result and seal_result.verified
+                    else blake3(unified_diff.encode("utf-8")).hexdigest()),
+        verification_tier=(seal_result.tier if seal_result else "unverified"),
+        delivery_status=delivery_status,
+        delivery_error=delivery_error,
     )

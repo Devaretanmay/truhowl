@@ -2,7 +2,9 @@
 
 > [!NOTE]
 > **This guide is for platform operators hosting their own Truhowl webhook daemon.**
-> End-user developers do NOT need to follow this guide or generate GitHub App private keys. Customers simply install the hosted Truhowl GitHub App on their repository.
+> End-user developers do not need to generate GitHub App private keys themselves. Today the App is
+> self-hosted — an operator runs this deployment once for the team — and there is no hosted
+> Truhowl service to install from yet.
 
 ## 1. GitHub App setup
 
@@ -25,15 +27,15 @@
 ## 3. Run with Docker
 
 ```bash
-docker build -f docker/Dockerfile.app -t truhowl-app:1.1.3 .
-docker run -d --name truhowl -p 8080:8080 --env-file .env -v truhowl-data:/data truhowl-app:1.1.3
+docker build -f docker/Dockerfile.app -t truhowl-app:1.2.0 .
+docker run -d --name truhowl -p 8080:8080 --env-file .env -v truhowl-data:/data truhowl-app:1.2.0
 ```
 
 With background monitoring (poll READY repos every 5 minutes):
 
 ```bash
 docker run -d --name truhowl -p 8080:8080 --env-file .env -v truhowl-data:/data \
-  truhowl-app:1.1.3 sh -c "truhowl app serve --port ${PORT:-8080} --watch 300"
+  truhowl-app:1.2.0 sh -c "truhowl app serve --port ${PORT:-8080} --watch 300"
 ```
 
 ## 4. Run on bare metal

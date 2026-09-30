@@ -133,10 +133,13 @@ def test_customer_e2e_green_flow(tmp_path, monkeypatch):
         model="groq/llama-3.3-70b-versatile",
     )
 
+    monkeypatch.setenv("GITHUB_TOKEN", "ghp_e2e_test_token")
     with patch("truhowl.maintenance.AIPatchPlanner.from_env",
                classmethod(lambda cls, **k: AIPatchPlanner(client=mock_llm_client))):
-        with patch("truhowl.maintenance.git_commit_and_push", return_value=True):
-            with patch("truhowl.maintenance.gh_create_pr", return_value="https://github.com/acme/billing/pull/42"):
+        # Publication is owned by the delivery service now; it resolves the
+        # git helpers from truhowl.git_ops at call time.
+        with patch("truhowl.git_ops.git_commit_and_push", return_value=True):
+            with patch("truhowl.git_ops.gh_create_pr", return_value="https://github.com/acme/billing/pull/42"):
                 report = run_maintenance_cycle(
                     repo_dir=repo_dir,
                     provider_name="stripe",

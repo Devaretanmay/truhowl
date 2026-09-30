@@ -69,15 +69,35 @@ truhowl migrate stripe-df9562     # Full reasoning -> repair -> sandbox -> verif
 
 ---
 
-## 4. Test Scenario 4: Fail-Closed Refusal & 2ms Rollback
+## 4. Test Scenario 4: Fail-Closed Refusal & Hash-Verified Rollback
 
 Verify that unproven repairs or broken test runs never open a PR or leave corrupt state behind.
 
 ### What You Observe:
 - If tests fail or no test suite is configured, Truhowl refuses loudly: *"could not safely verify this repair. No PR was created."*
-- Unverified changes are rolled back in 2ms using pre-execution BLAKE3 hash snapshots.
+- Unverified changes are rolled back from pre-execution BLAKE3 snapshots, restoring the exact recorded content.
 - Failure evidence is recorded in `.truhowl/knowledge/` avoid-lists to prevent repeating the failed repair pattern.
 - A detailed tamper-evident audit log is preserved at `.truhowl/hunt/<id>/audit.json`.
+
+---
+
+## 5. Live Validation Record
+
+**Date:** 2026-09-30
+
+**Live Validation Results:**
+- **Provider & Versions:** Stripe 11.18.0 → 13.0.0
+- **Model:** Live Groq `openai/gpt-oss-120b`
+- **Scope:** 1-file migration (`src/billing.js`, `.subscriptions.del` → `.subscriptions.cancel`)
+- **Deterministic Verification:** PASSED
+- **Clean-Room Replay:** PASSED (`behavioral_verified`)
+- **Git Transport:** Branch `truhowl/Stripe-v13-0-0` pushed to GitHub
+- **PR Delivery:** Real GitHub PR opened and independently inspected via `gh` CLI
+- **Cleanup:** Test repository closed and deleted cleanly
+
+**Transport Status:**
+- **GitHub transport:** PERSONAL/gh TOKEN VALIDATED
+- **GitHub App transport:** NOT YET LIVE VALIDATED
 
 ---
 

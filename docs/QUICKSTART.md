@@ -112,5 +112,5 @@ truhowl commit  # Commit to Git with verified provenance trailers
 - **Continuous Maintenance**: AI-authored repairs with sandbox verification and automated Developer Trust PRs (verified repairs only; refusals are loud and empty-handed).
 - **Kernel Enforcement**: Built on native OS isolation (macOS Seatbelt / Linux Landlock).
 - **Credential Protection**: `~/.ssh`, `~/.aws`, `~/.config/gcloud`, git credentials, and keychains are denied by default.
-- **Instant Rollback**: Hash-based BLAKE3 file snapshots allow physical restoration of modified and deleted files in 2ms.
+- **Hash-Verified Rollback**: BLAKE3 snapshots taken before execution restore modified and deleted files deterministically.
 - **Zero Infrastructure**: No Docker, no daemon, no cloud account required.

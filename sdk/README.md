@@ -38,7 +38,7 @@ npm test
 ```ts
 import * as truhowl from '@truhowl/sdk'
 
-truhowl.version()                    // "1.1.3"
+truhowl.version()                    // "1.2.0"
 truhowl.sandboxSupported()           // true
 const out = truhowl.compress(text)
 

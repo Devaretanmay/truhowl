@@ -36,14 +36,18 @@ Sealing model::
     sentinel — a visibly hostile act, never an accident.
 
 This module imports nothing from hunt.py at runtime (annotations only,
-deferred), so hunt.py can import it freely without a cycle. It is
-deliberately dependency-light: stdlib only.
+deferred), so hunt.py can import it freely without a cycle. Its only
+non-stdlib dependency is ``truhowl.verification.contract`` — the shared
+verification predicate — which is itself dependency-free and exists so this
+sealer cannot grade a repair differently from the product's service path.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
+
+from truhowl.verification.contract import check_verification_contract, tier_for
 
 
 _SEAL: Any = object()
@@ -318,16 +322,19 @@ def seal_verified_repair(
     if not test_command or test_exit != 0:
         return None
 
-    replay_exit = test_exit
-    replay_cmd = test_command
-    if replay_evidence is not None:
-        try:
-            replay_exit = int(getattr(replay_evidence, "exit_code", -1))
-        except (TypeError, ValueError):
-            return None
-        replay_cmd = str(getattr(replay_evidence, "command", "") or "")
-        if replay_exit != 0 or not replay_cmd:
-            return None
+    # Clean-room replay is MANDATORY. There is no alternate lighter verified
+    # path: a repair that was never re-applied from a pristine baseline and
+    # re-verified cannot earn a publication token, even if its first run was
+    # green.
+    if replay_evidence is None:
+        return None
+    try:
+        replay_exit = int(getattr(replay_evidence, "exit_code", -1))
+    except (TypeError, ValueError):
+        return None
+    replay_cmd = str(getattr(replay_evidence, "command", "") or "")
+    if replay_exit != 0 or not replay_cmd:
+        return None
 
     solved = bool(getattr(interpretation, "solved", False))
     unrelated = bool(getattr(interpretation, "unrelated_behavior", True))
@@ -353,15 +360,23 @@ def seal_verified_repair(
 
     computed_hash = patch_hash or _hashlib.sha256(unified.encode("utf-8")).hexdigest()
 
-    rationale = str(getattr(interpretation, "rationale", "") or "")[:2000]
-    cmd_lower = test_command.lower()
-    is_compile_only = (
-        any(k in cmd_lower for k in ("tsc", "type-check", "build", "mypy", "pyright"))
-        and not any(k in cmd_lower for k in ("test", "jest", "pytest", "vitest", "mocha", "cargo test"))
+    # The ONE verification contract. Both the service path and this Hunt path
+    # run this predicate, so a repair cannot earn a stronger status here than
+    # it would there (or vice versa).
+    verdict = check_verification_contract(
+        test_command=test_command,
+        test_exit_code=test_exit,
+        replay_command=replay_cmd,
+        replay_exit_code=replay_exit,
+        patch_hash=computed_hash,
+        scope_ok=scope_ok,
+        candidate_files=len(files),
     )
-    output_text = str(getattr(evidence, "output", "") or "").lower()
-    has_test_runner_output = any(k in output_text for k in ("passed", "test results:", "tests passed", "ok.", "failures:"))
-    verification_tier = "behavioral_verified" if (not is_compile_only or has_test_runner_output) else "compile_verified"
+    if not verdict.ok:
+        return None
+
+    rationale = str(getattr(interpretation, "rationale", "") or "")[:2000]
+    verification_tier = tier_for(test_command, str(getattr(evidence, "output", "") or ""))
     try:
         return VerifiedRepair(
             finding_id=finding_id,

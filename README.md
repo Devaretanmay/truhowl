@@ -4,7 +4,7 @@
 
 ### Your codebase has a second author: the outside world. Truhowl reviews its pull requests.
 
-![version](https://img.shields.io/badge/version-1.1.3-blue) ![license](https://img.shields.io/badge/license-Apache--2.0-green) ![python](https://img.shields.io/badge/python-3.10%2B-yellow) ![platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey)
+![version](https://img.shields.io/badge/version-1.2.0-blue) ![license](https://img.shields.io/badge/license-Apache--2.0-green) ![python](https://img.shields.io/badge/python-3.10%2B-yellow) ![platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey)
 
 **APIs drift. SDKs break. Truhowl detects it, repairs it, and proves it — before your CI goes red.**
 
@@ -61,16 +61,52 @@ truhowl migrate <finding> # Plan, edit, build/test, repair, and prepare/open PR
 truhowl consult .         # Report-only: AI assessment as a GitHub Issue, modifies nothing
 ```
 
-Canonical product workflow:
+### The product workflow
+
+The primary path is the agent, not the CLI. The CLI is the local interface to
+the same services.
+
+```text
+Connect          truhowl connect                  link repositories (GitHub App or local paths)
+   ↓
+Watch            truhowl agent watch --poll       poll upstream registries, open Migration Cases
+   ↓
+Migration Case   truhowl agent cases              a published release meets affected usage
+   ↓
+Repair           truhowl agent run <case>         plan → edit → test
+   ↓
+Verify           (automatic)                      clean-room replay + scope/hash check
+   ↓
+Deliver          truhowl agent run <case> --create-pr   PR only for a verified migration
+```
+
+Every step above is explainable from persisted evidence: `truhowl agent show <case>`
+and `truhowl ask "why wasn't the PR opened?"` answer from the store, not from prose.
+
+Automation is bounded by one persisted policy, default `OBSERVE`:
+
+| Mode | Detect | Repair | Verify | Publish |
+|------|--------|--------|--------|---------|
+| `observe` (default) | yes | no | no | no |
+| `prepare` | yes | yes | yes | no |
+| `deliver` | yes | yes | yes | yes |
+
+```bash
+truhowl agent policy prepare    # repair and prove, never publish
+truhowl agent policy deliver    # also publish verified migrations
+```
+
+CLI surface for the same services (all optional):
 - **Check** (`truhowl check`): Detects breaking SDK/API drift, maps affected callsites. Zero tokens, zero writes.
-- **Ask** (`truhowl ask`): Answers impact and failure questions from local state. Read-only, no AI key needed.
-- **Migrate** (`truhowl migrate <finding>`): Autonomous migration repair worker: plans the migration, edits files, executes tests in an isolated sandbox, repairs failures, and opens a verified PR.
+- **Ask** (`truhowl ask`): Answers impact, verification and delivery questions from local evidence. Read-only, no AI key needed.
+- **Migrate** (`truhowl migrate <finding>`): The repair entry point for a single finding ID, using the same verification and delivery services as the agent.
 - **Consult** (`truhowl consult`): Deep AI reasoning, architectural impact diagnosis, files a GitHub Issue, modifies zero code.
 
-Agent loop (no manual finding IDs): `truhowl agent watch` discovers a
-change and opens a MigrationCase; `truhowl agent run` drives it
-end-to-end; `truhowl agent show` explains from persisted evidence.
-See [GitHub App behavior](docs/GITHUB_APP.md).
+Agent loop (no manual finding IDs): `truhowl agent watch --poll` polls
+upstream registries (npm today, for the supported provider set), turns a new
+release into a Migration Case when connected repositories show affected usage,
+and `truhowl agent run` drives it end-to-end; `truhowl agent show` explains
+from persisted evidence. See [GitHub App behavior](docs/GITHUB_APP.md).
 
 Truhowl also watches across connected repositories: a push in one repo is an
 observation that can confirm into an advisory Issue on another repo's affected
@@ -194,9 +230,15 @@ truhowl migrate . --provider openai --from v3.28.0 --to v4.0.0 --create-pr --rep
 Truhowl validates repairs against the repository's real test suite.
 Refusals are loud and empty-handed: a repair that cannot be proven is a repair
 not shipped. When verification fails, scope boundaries are breached, or no test
-runner exists, Truhowl rolls back changes in 2ms and refuses to open a PR.
+runner exists, Truhowl restores the baseline from pre-execution BLAKE3
+snapshots and refuses to open a PR.
 
-Every commit is gated: **521 Rust + 483 Python tests**, lint-clean.
+Every verification path runs the same contract: deterministic verification,
+then a fresh clean-room replay that restores the baseline, re-applies the
+candidate exactly, re-verifies, and checks scope and candidate hash. There is
+no lighter "verified" tier, and no verified state can be minted without replay
+evidence. Every commit is gated: **{RUST_TESTS} Rust + {PYTHON_TESTS} Python
+tests**, lint-clean.
 See the [Validation Guide](docs/VALIDATION_GUIDE.md)
 for the full protocol.
 
@@ -207,12 +249,12 @@ for the full protocol.
 Truhowl provides **controlled, reproducible execution** across local kernel sandboxes (macOS Seatbelt, Linux Landlock) and Docker:
 - **Zero-Exfiltration Isolation**: Credentials (`~/.ssh`, `~/.aws`, keychains) denied at the kernel boundary.
 - **Execution-Evidence Compression**: Native Rust engines distill massive test outputs down to high-signal failure traces and stack traces for PR evidence.
-- **2ms Instant Undo**: Pre-execution BLAKE3 hash snapshots enable physical rollback of modified and generated files in 2 milliseconds.
+- **Hash-Verified Undo**: Pre-execution BLAKE3 snapshots make rollback of modified and generated files a deterministic restore rather than a best-effort reverse patch.
 
 ```bash
 truhowl init                          # Initialize workspace control plane
 truhowl diff                          # Inspect isolated execution change sets
-truhowl undo                          # Instant 2ms physical rollback
+truhowl undo                          # Restore from the pre-execution snapshot
 ```
 
 ---
@@ -269,8 +311,10 @@ maintenance for systems that change.
 
 The old fable got it backwards: the village stopped believing because the boy
 cried wolf over nothing. Most automation still does — vague green checks,
-unverified badges, silent passes. Truhowl only howls when there's actually
-one in the fence: verified repairs, loud refusals, never a faked pass.
+unverified badges, silent passes. Truhowl's verified-repair path only speaks
+when a repair has been proven against your own test suite, and every other
+outcome is a loud, evidence-backed refusal. Claims outside that path are
+scoped to what the code actually does, not to what would sound best.
 
 ## Beta
 

@@ -1882,8 +1882,8 @@ def cmd_ask(args):
     """Answer maintenance questions from agent state and local evidence.
 
     Read-only by default. Action intents print the exact agent command;
-    --act executes verification runs (PR creation still needs an explicit
-    `agent run --create-pr --github-repo`).
+    `--act` executes repairs but requires `--yes` (repairs touch files) and
+    respects the persisted automation policy — the policy is the ceiling.
     """
     question = " ".join(getattr(args, "question", []) or []).strip()
     root_path = os.path.abspath(getattr(args, "path", ".") or ".")
@@ -1891,6 +1891,7 @@ def cmd_ask(args):
     act = bool(getattr(args, "act", False))
     q = question.lower()
 
+    from truhowl.agent import automation
     from truhowl.agent import service as agent_svc
     from truhowl.config import find_workspace_root as _find_ws
     workspace = _find_ws(root_path) or root_path
@@ -1898,6 +1899,115 @@ def cmd_ask(args):
     def _cases_for(provider: str) -> list:
         return [c for c in agent_svc.list_cases(workspace)
                 if str(c.get("provider", "")).lower() == provider.lower()]
+
+    # Provider resolution happens before intent matching: several intents
+    # (delivery, upstream, verification) scope themselves by provider.
+    try:
+        reg = get_default_registry()
+        specs = getattr(reg, "providers", None) or getattr(reg, "specs", None) or []
+        known = [str(getattr(p, "provider_name", "") or "").lower() for p in specs]
+    except Exception:
+        known = []
+    for fallback in ("stripe", "openai", "anthropic", "supabase", "twilio", "aws"):
+        if fallback not in known:
+            known.append(fallback)
+    provider = next((p for p in known if p and p in q), None)
+
+    # ── Delivery intent ──────────────────────────────────────────────────
+    # Placed before the "open pr" run proposal so questions like
+    # "why didn't you open the PR?" are answered as delivery, not as a plan.
+    if any(w in q for w in ("pr", "pull request", "publish", "delivery", "deliver",
+                            "not open", "didn't open", "did not open", "unpublished")):
+        from truhowl.agent.models import load_store as _load
+        store = _load(workspace)
+        rows = []
+        for case_key, raw in store.cases.items():
+            if provider and str(raw.get("provider", "")).lower() != provider.lower():
+                continue
+            for r in raw.get("repos", []):
+                delivery = store.delivery.get(f"{case_key}\x00{r.get('repo_key')}", {})
+                rows.append({"case_id": case_key, "repo_key": r.get("repo_key"),
+                             "state": r.get("state"),
+                             "delivery": delivery.get("status", "not-requested"),
+                             "error": delivery.get("error", ""),
+                             "pr_url": delivery.get("pr_url") or r.get("pr_url")})
+        if as_json:
+            print(json.dumps({"question": question, "answer": "delivery", "repos": rows},
+                             indent=2, default=str))
+            return
+        if not rows:
+            print("No migration cases recorded yet, so no PR has been requested.")
+            print("Watch a change first: truhowl agent watch --poll")
+            return
+        for row in rows:
+            status = row["delivery"]
+            if status == "published":
+                print(f"{row['case_id']} / {row['repo_key']}: published {row['pr_url']}")
+            elif status in ("blocked-auth", "failed"):
+                print(f"{row['case_id']} / {row['repo_key']}: NOT published ({status})")
+                print(f"  {row['error']}")
+                if status == "blocked-auth":
+                    print("  Fix: provide GitHub credentials (GITHUB_TOKEN or a Truhowl "
+                          "GitHub App), then re-run the case.")
+            elif row["state"] == "verified":
+                print(f"{row['case_id']} / {row['repo_key']}: verified, publication not requested "
+                      "(automation mode gates PR creation).")
+            else:
+                print(f"{row['case_id']} / {row['repo_key']}: no PR — state is {row['state']}.")
+        return
+
+    # ── Upstream intent ──────────────────────────────────────────────────
+    if any(w in q for w in ("upstream", "new release", "registry", "latest version",
+                            "new version", "released")):
+        from truhowl.agent.models import load_store as _load
+        store = _load(workspace)
+        upstream = (store.org or {}).get("upstream", {}) or {}
+        if as_json:
+            print(json.dumps({"question": question, "answer": "upstream", "packages": upstream},
+                             indent=2, default=str))
+            return
+        if not upstream:
+            print("No upstream polling recorded yet.")
+            print("Run: truhowl agent watch --poll")
+            return
+        print("Upstream state (most recent poll):")
+        for package, state in sorted(upstream.items()):
+            if state.get("error"):
+                print(f"  {package}: check failed — {state['error']}")
+            else:
+                print(f"  {package}: latest {state.get('version', '?')} "
+                      f"(checked {state.get('checked_at', '?')})")
+        changes = store.changes or []
+        if changes:
+            print("Detected changes:")
+            for c in changes[-10:]:
+                print(f"  {c.get('provider')} {c.get('version_from')} -> {c.get('version_to')} "
+                      f"[{c.get('basis', '')}]")
+        return
+
+    # ── Clean-room verification intent ───────────────────────────────────
+    if any(w in q for w in ("clean-room", "clean room", "replay", "verification pass",
+                            "verified how", "proof")):
+        from truhowl.agent.models import load_store as _load
+        store = _load(workspace)
+        rows = [e for e in (store.evidence or [])
+                if not provider or str(e.get("case_id", "")).lower().startswith(provider.lower())]
+        if as_json:
+            print(json.dumps({"question": question, "answer": "verification",
+                              "evidence": rows[-10:]}, indent=2, default=str))
+            return
+        if not rows:
+            print("No verification evidence recorded yet for this workspace.")
+            return
+        print("Clean-room verification evidence (newest last):")
+        for ev in rows[-10:]:
+            replay = ev.get("replay_command") or ""
+            exit_code = ev.get("replay_exit_code", -1)
+            verdict = "passed" if replay and int(exit_code) == 0 else (
+                "NOT RUN" if not replay else f"failed (exit {exit_code})")
+            print(f"  {ev.get('case_id')} / {ev.get('repo_key')}: replay {verdict} "
+                  f"[{replay or 'none'}] tier={ev.get('verification_tier', 'unverified')}")
+        return
 
     if any(w in q for w in ("waiting", "attention", "stuck", "blocked", "refused")):
         stuck = agent_svc.cases_needing_attention(workspace)
@@ -1928,27 +2038,36 @@ def cmd_ask(args):
             print("Watch a change first: truhowl agent watch --provider stripe --from 19 --to 20 --repo .")
             return
         if not act:
-            print("Proposed runs (re-run with --act to execute):")
+            print("Proposed runs (re-run with --act --yes to execute):")
             for case_id, keys in runnable:
                 print(f"  truhowl agent run {case_id}")
             return
+        # --act touches real files. It requires an explicit confirmation flag;
+        # a bare --act is a refusal, never a silent repair.
+        confirmed = bool(getattr(args, "yes", False))
+        if not confirmed:
+            mode = automation.get_mode(workspace)
+            if not automation.allows_repair(mode):
+                print("Refused: this would repair repositories, but no confirmation was given.")
+                print("Re-run with --act --yes to confirm one run, or set a standing policy:")
+                print("  truhowl agent policy prepare   # repair + verify, never publish")
+                print("  truhowl agent policy deliver   # also publish verified migrations")
+                return
+            print(f"Refused: automation mode {mode.upper()} requires explicit confirmation "
+                  "for repairs.")
+            print("Re-run with --act --yes to confirm.")
+            return
         for case_id, _keys in runnable:
             print(f"== {case_id} ==")
-            for res in agent_svc.run_case(workspace, case_id):
-                print(f"  [{res['state']}] {res['repo_key']}"
-                      + (f"  reason: {res['reason'][:160]}" if res.get("reason") else ""))
+            for res in agent_svc.run_case(workspace, case_id, confirmed=True):
+                line = (f"  [{res['state']}] {res['repo_key']}"
+                        + (f"  reason: {res['reason'][:160]}" if res.get("reason") else ""))
+                print(line)
+                delivery = res.get("delivery") or {}
+                if delivery.get("status") and delivery["status"] != "not-requested":
+                    print(f"      delivery: {delivery['status']}"
+                          + (f" — {delivery['error']}" if delivery.get("error") else ""))
         return
-
-    try:
-        reg = get_default_registry()
-        specs = getattr(reg, "providers", None) or getattr(reg, "specs", None) or []
-        known = [str(getattr(p, "provider_name", "") or "").lower() for p in specs]
-    except Exception:
-        known = []
-    for fallback in ("stripe", "openai", "anthropic", "supabase", "twilio", "aws"):
-        if fallback not in known:
-            known.append(fallback)
-    provider = next((p for p in known if p and p in q), None)
 
     if any(w in q for w in ("fail", "refus", "reject", "abort", "why", "error")):
         if provider:
@@ -2058,6 +2177,24 @@ def cmd_agent_watch(args):
     from truhowl.agent import service as agent
     workspace = _agent_workspace()
     repos = getattr(args, "repos", []) or ["."]
+    if getattr(args, "poll", False):
+        from truhowl.changes.monitor import poll_and_watch
+        providers = [args.provider] if getattr(args, "provider", None) else None
+        out = poll_and_watch(workspace, providers, repos)
+        for rel in out["releases"]:
+            print(f"Upstream: {rel['provider']} {rel['previous_version'] or '?'} -> "
+                  f"{rel['current_version']} ({rel['source']})")
+        for c in out["cases"]:
+            print(f"Case {c['case_id']}: {c['provider']} {c['version_from']} -> "
+                  f"{c['version_to']} repos={','.join(c['repos'])}")
+        for s in out["skipped"]:
+            print(f"Skipped {s['provider']}: {s['reason']}")
+        for f in out["failures"]:
+            print(f"Upstream check failed for {f['package']}: {f['error']}")
+        return
+    if not args.provider or not args.from_version or not args.to_version:
+        print("Provide --provider/--from/--to, or use --poll for upstream detection.")
+        return
     case = agent.watch(workspace, args.provider, args.from_version, args.to_version, repos)
     print(f"Case {case.case_id}: {case.provider} {case.version_from} -> {case.version_to}")
     for r in case.repos:
@@ -2069,9 +2206,15 @@ def cmd_agent_watch(args):
 
 
 def cmd_agent_run(args):
+    from truhowl.agent import automation
     from truhowl.agent import service as agent
     workspace = _agent_workspace()
     keys = _agent_repo_keys(workspace, getattr(args, "repos", []) or [])
+    confirmed = bool(getattr(args, "yes", False))
+    mode = automation.get_mode(workspace)
+    if args.create_pr and not automation.allows_publish(mode):
+        print(f"PR publication not requested: automation mode is {mode.upper()}. "
+              f"Run `truhowl agent policy deliver` to allow publication.")
     results = agent.run_case(
         workspace, args.case_id, keys,
         create_pr=bool(getattr(args, "create_pr", False)),
@@ -2079,6 +2222,7 @@ def cmd_agent_run(args):
         llm_api_key=getattr(args, "api_key", None),
         llm_model=getattr(args, "model", None),
         llm_base_url=getattr(args, "base_url", None),
+        confirmed=confirmed,
     )
     for res in results:
         line = f"  [{res['state']}] {res['repo_key']}"
@@ -2087,6 +2231,14 @@ def cmd_agent_run(args):
         if res.get("reason"):
             line += f"  reason: {res['reason'][:160]}"
         print(line)
+        delivery = res.get("delivery") or {}
+        status = delivery.get("status")
+        # Delivery is reported separately from verification and never silently.
+        if status and status != "not-requested":
+            dline = f"      delivery: {status}"
+            if delivery.get("error"):
+                dline += f" — {delivery['error']}"
+            print(dline)
 
 
 def cmd_agent_cases(args):
@@ -2106,6 +2258,27 @@ def cmd_agent_cases(args):
 def cmd_agent_show(args):
     from truhowl.agent import service as agent
     print(agent.explain_case(_agent_workspace(), args.case_id))
+
+
+def cmd_agent_policy(args):
+    """Show or set the automation mode. Policy is the ceiling on actions."""
+    from truhowl.agent import automation
+    workspace = _agent_workspace()
+    mode = getattr(args, "mode", None)
+    if mode:
+        try:
+            policy = automation.set_mode(workspace, mode)
+        except ValueError as exc:
+            print(f"Refused: {exc}")
+            return
+        print(f"Automation mode set to {policy['mode'].upper()}: "
+              f"{automation.describe(policy['mode'])}.")
+        return
+    policy = automation.get_policy(workspace)
+    print(f"Automation mode: {policy['mode'].upper()} — {automation.describe(policy['mode'])}")
+    print(f"Available: {', '.join(automation.MODES)}  (default: {automation.DEFAULT_MODE})")
+    if policy.get("updated_at"):
+        print(f"Last changed: {policy['updated_at']}")
 
 
 def cmd_auth(args):
@@ -3096,21 +3269,27 @@ def main():
     ask_p.add_argument("--json", action="store_true", help="Output machine-readable JSON")
     ask_p.add_argument("--act", action="store_true",
                        help="Execute the proposed agent run (default prints the command)")
+    ask_p.add_argument("--yes", action="store_true",
+                       help="Confirm the action requested by --act (required; repairs touch files)")
 
     agent_parser = subparsers.add_parser("agent", help="Truhowl agent: watch changes, run cases, inspect state")
     agent_sub = agent_parser.add_subparsers(dest="agent_command")
     agent_watch_p = agent_sub.add_parser("watch", help="Discover change, calculate impact, create case (no repairs)")
-    agent_watch_p.add_argument("--provider", required=True, help="Target provider (e.g. stripe)")
-    agent_watch_p.add_argument("--from", dest="from_version", required=True, help="Current version")
-    agent_watch_p.add_argument("--to", dest="to_version", required=True, help="Target version")
+    agent_watch_p.add_argument("--provider", required=False, default=None, help="Target provider (e.g. stripe)")
+    agent_watch_p.add_argument("--from", dest="from_version", default=None, help="Current version")
+    agent_watch_p.add_argument("--to", dest="to_version", default=None, help="Target version")
     agent_watch_p.add_argument("--repo", action="append", default=[], dest="repos",
                                help="Repo path (repeatable; default: .)")
+    agent_watch_p.add_argument("--poll", action="store_true",
+                               help="Poll upstream registries first; versions optional")
     agent_run_p = agent_sub.add_parser("run", help="Run case lifecycle end-to-end (plan, repair, verify, record)")
     agent_run_p.add_argument("case_id", help="Migration case id (see truhowl agent cases)")
     agent_run_p.add_argument("--repo", action="append", default=[], dest="repos",
                              help="Repo key or path (repeatable; default: all case repos)")
     agent_run_p.add_argument("--create-pr", action="store_true", help="Open GitHub PR for verified repos")
     agent_run_p.add_argument("--github-repo", default=None, help="GitHub repo (owner/repo) for PR creation")
+    agent_run_p.add_argument("--yes", action="store_true",
+                             help="Confirm this run explicitly (required under OBSERVE policy)")
     agent_run_p.add_argument("--model", default=None, help="BYOK LLM model name")
     agent_run_p.add_argument("--api-key", default=None, help="BYOK LLM API key")
     agent_run_p.add_argument("--base-url", default=None, help="Custom LLM base URL")
@@ -3118,6 +3297,10 @@ def main():
     agent_cases_p.add_argument("--state", default=None, help="Filter by repo state (e.g. verified, refused)")
     agent_show_p = agent_sub.add_parser("show", help="Explain a case from persisted evidence")
     agent_show_p.add_argument("case_id", help="Migration case id")
+    agent_policy_p = agent_sub.add_parser(
+        "policy", help="Show or set the automation mode (observe | prepare | deliver)")
+    agent_policy_p.add_argument("mode", nargs="?", default=None,
+                                help="observe (default) | prepare | deliver")
 
     index_p = subparsers.add_parser("index", help="Index repository dependencies, callsites, and construct graph")
     index_p.add_argument("path", nargs="?", default=".", help="Repository root path (default: .)")
@@ -3246,6 +3429,8 @@ def main():
             cmd_agent_cases(args)
         elif acmd == "show":
             cmd_agent_show(args)
+        elif acmd == "policy":
+            cmd_agent_policy(args)
         else:
             agent_parser.print_help()
     else:

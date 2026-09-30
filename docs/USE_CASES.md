@@ -199,5 +199,5 @@ The `AgentTruhowl` variant auto-enables insulation (credential proxy,
 snapshots, compression) via `TruhowlConfig(auto_modules=True)`; `Truhowl`
 stays empty-by-default and everything here is opt-in.
 
-All examples above run against `truhowl==1.1.3` as installed from PyPI / wheel
+All examples above run against `truhowl==1.2.0` as installed from PyPI / wheel
 (including the Rust `_core`).

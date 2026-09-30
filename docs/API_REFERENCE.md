@@ -1,6 +1,6 @@
 # Truhowl Python & Engine API Reference
 
-**Version:** 1.1.3  
+**Version:** 1.2.0  
 **Package:** `truhowl` (PyPI)
 
 ---

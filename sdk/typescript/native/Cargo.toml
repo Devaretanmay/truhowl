@@ -1,6 +1,6 @@
 [package]
 name = "truhowl-native"
-version = "1.0.4"
+version = "1.2.0"
 edition = "2021"
 description = "Node/TypeScript binding for the Truhowl kernel sandbox"
 license = "Apache-2.0"

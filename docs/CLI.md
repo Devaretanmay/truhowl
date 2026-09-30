@@ -176,7 +176,7 @@ Truhowl executes test suites and build scripts under strict kernel sandboxing to
 - **macOS**: Kernel isolation enforced via Seatbelt (`sandbox-exec` profiles) restricting filesystem and network access.
 - **Linux**: Kernel isolation enforced via Landlock LSM system calls restricting directory hierarchies.
 - **Fail-Closed Fallback**: If running on an unsupported platform or in an unverified sandbox environment, Truhowl enforces strict execution boundaries or fails closed rather than running unconfined.
-- **2ms Instant Undo**: Pre-execution BLAKE3 hash snapshots enable physical rollback of all modified files within 2 milliseconds.
+- **Hash-Verified Undo**: Pre-execution BLAKE3 snapshots make rollback of modified files a deterministic restore rather than a best-effort reverse patch.
 
 ---
 

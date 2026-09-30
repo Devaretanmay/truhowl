@@ -1330,7 +1330,7 @@ class LocalGitHubPublisher:
             f"Verified: `{repair.test_command}` exit 0\n"
             f"Audit: .truhowl/hunt/{repair.finding_id}/audit.json\n\n"
             f"Agent-Origin: agent\n"
-            f"Agent-Agent: truhowl@1.1.3\n"
+            f"Agent-Agent: truhowl@1.2.0\n"
             f"Agent-Execution: hunt_{repair.finding_id}\n"
             f"Agent-Compartment: hunt\n"
             f"Agent-Sandbox: none\n"
