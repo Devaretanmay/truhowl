@@ -40,6 +40,7 @@ import subprocess
 import tempfile
 import time
 from dataclasses import asdict, dataclass, field
+from types import SimpleNamespace
 from typing import Any
 
 try:
@@ -303,6 +304,7 @@ class HuntContext:
     verified_memory: dict[str, Any] = field(default_factory=dict)
     pr_state: dict[str, Any] = field(default_factory=dict)
     repo_policy: dict[str, Any] = field(default_factory=dict)
+    environment: dict[str, Any] = field(default_factory=dict)
 
 
 def _git(repo: str, *args: str, timeout: int = 15) -> str:
@@ -471,6 +473,17 @@ def gather_context(repo_dir: str, finding: HuntFinding) -> HuntContext:
     except Exception:
         policy = {}
 
+    env_info: dict[str, Any] = {}
+    try:
+        from koyote.env_context import extract_repo_environment
+        env_info = extract_repo_environment(
+            repo_dir,
+            relevant_files=relevant,
+            target_pkg=finding.provider,
+        ).to_dict()
+    except Exception:
+        env_info = {}
+
     return HuntContext(
         finding=finding,
         repository=os.path.basename(repo_dir),
@@ -489,6 +502,7 @@ def gather_context(repo_dir: str, finding: HuntFinding) -> HuntContext:
         verified_memory=memory,
         pr_state=pr_state,
         repo_policy=policy,
+        environment=env_info,
     )
 
 
@@ -584,6 +598,14 @@ def _context_text(ctx: HuntContext) -> str:
         sections.append(f"Vendor guide: {ext['changelog_url']}")
     if ctx.existing_tests:
         sections.append(f"Existing tests: `{ctx.existing_tests}` must keep passing")
+    if ctx.environment:
+        try:
+            from koyote.env_context import format_repo_environment_dict
+            env_formatted = format_repo_environment_dict(ctx.environment)
+            if env_formatted:
+                sections.append(f"Repository Environment & Compiler Options:\n{env_formatted}")
+        except Exception:
+            pass
     if ctx.verified_memory.get("verified_patterns"):
         sections.append("Verified maintenance memory (trusted):\n" + "\n".join(
             f"- {x}" for x in ctx.verified_memory["verified_patterns"][:8]))
@@ -736,6 +758,59 @@ def _hash_file(path: str) -> str:
             return hashlib.sha256(f.read()).hexdigest()[:16]
     except OSError:
         return ""
+
+
+def _compute_patch_hash(diff_text: str) -> str:
+    """Compute blake3 or sha256 digest of patch diff text."""
+    try:
+        from blake3 import blake3 as _blake3
+        return _blake3(diff_text.encode("utf-8")).hexdigest()
+    except Exception:
+        return hashlib.sha256(diff_text.encode("utf-8")).hexdigest()
+
+
+def _read_file_text(path: str) -> str:
+    try:
+        with open(path, encoding="utf-8", errors="replace") as f:
+            return f.read()
+    except OSError:
+        return ""
+
+
+def _write_file_text(path: str, content: str) -> None:
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(content)
+    except OSError:
+        pass
+
+
+def _snapshot_dirty_files(repo_dir: str, dirty_files: set[str]) -> dict[str, str]:
+    snapshots: dict[str, str] = {}
+    for rel in dirty_files:
+        src = os.path.join(repo_dir, rel)
+        if os.path.isfile(src):
+            snapshots[rel] = _read_file_text(src)
+    return snapshots
+
+
+def _apply_candidate_files(sandbox_dir: str, candidate_files: list[tuple[str, str]]) -> None:
+    for rel, content in candidate_files:
+        _write_file_text(os.path.join(sandbox_dir, rel), content)
+
+
+def _sync_baseline_state(target_dir: str, repo_dir: str, baseline_snapshots: dict[str, str]) -> None:
+    """Ensure baseline uncommitted files and dependencies are reflected in sandbox."""
+    for rel, content in baseline_snapshots.items():
+        _write_file_text(os.path.join(target_dir, rel), content)
+    repo_nm = os.path.join(repo_dir, "node_modules")
+    sand_nm = os.path.join(target_dir, "node_modules")
+    if os.path.isdir(repo_nm) and not os.path.exists(sand_nm) and not os.path.islink(sand_nm):
+        try:
+            os.symlink(repo_nm, sand_nm)
+        except OSError:
+            pass
 
 
 def sandbox_changed_vs_repo(sandbox_dir: str, repo_dir: str,
@@ -1226,8 +1301,6 @@ def run_hunt(
         "dirty": ctx.pr_state.get("dirty", False),
     }
 
-    sandbox = active_ports.sandbox.create(repo_dir, ctx.commit_sha)
-    audit["lifecycle"].append(f"sandbox_created:{sandbox.sandbox_dir}")
     snapshotter = SnapshotManager(workdir=repo_dir,
                                   snapshot_dir=os.path.join(repo_dir, ".koyote",
                                                             HUNT_DIRNAME, finding.finding_id,
@@ -1237,6 +1310,7 @@ def run_hunt(
     except Exception:
         pass
     baseline_dirty = _worktree_dirty_set(repo_dir)
+    baseline_dirty_snapshots = _snapshot_dirty_files(repo_dir, baseline_dirty)
 
     base_ctx = None
     if build_reasoning_context is not None:
@@ -1254,6 +1328,7 @@ def run_hunt(
     final_reasoning: HuntReasoning | None = None
     final_interp: HuntInterpretation | None = None
     final_repair: VerifiedRepair | None = None
+    winning_sandbox: SandboxResult | None = None
     iterations = 0
 
     try:
@@ -1272,54 +1347,59 @@ def run_hunt(
                 "file_intents": [asdict(x) for x in reasoning.file_intents],
             })
 
+            # Pristine Attempt Isolation: each attempt gets a fresh detached sandbox from baseline
+            attempt_sandbox = active_ports.sandbox.create(repo_dir, ctx.commit_sha)
+            _sync_baseline_state(attempt_sandbox.sandbox_dir, repo_dir, baseline_dirty_snapshots)
+            audit["lifecycle"].append(f"sandbox_created:attempt_{attempt}:{attempt_sandbox.sandbox_dir}")
+            attempt_sandbox_dir = attempt_sandbox.sandbox_dir
+
             declared = [x for x in (reasoning.affected_paths or []) if x]
             candidates = declared or list(ctx.relevant_files or []) or list(finding.affected_files or [])
-            # Evidence candidates only: the model decides per file whether a
-            # change is warranted (no-change yields no patch for that file).
             candidate_abs = []
             for rel in candidates[:30]:
-                abs_p = rel if os.path.isabs(rel) else os.path.join(sandbox.sandbox_dir, rel)
+                abs_p = rel if os.path.isabs(rel) else os.path.join(attempt_sandbox_dir, rel)
                 if os.path.isfile(abs_p):
                     candidate_abs.append(abs_p)
+
             if not candidate_abs:
                 audit["decisions"].append({"attempt": attempt, "decision": "no_candidate_files"})
                 prior_evidence = "No candidate files existed in the sandbox for the declared paths."
+                active_ports.sandbox.destroy(repo_dir, attempt_sandbox)
                 continue
 
             plan = build_repair_plan(
                 finding, reasoning, base_ctx,
                 test_error=prior_evidence if prior_evidence else "")
 
-            # Single authorized patch channel: the PatchAuthor port seals
-            # every result with the live model's identity. Raw planner
-            # output and deterministic fixer output cannot enter this
-            # list — seal_ai_patch admits only successful, diff-bearing
-            # results stamped author="ai".
             try:
                 patches = active_ports.author.author(
                     ctx=ctx,
                     plan=plan,
-                    sandbox_dir=sandbox.sandbox_dir,
+                    sandbox_dir=attempt_sandbox_dir,
                     candidate_files=candidate_abs,
                     reasoning_attempt=attempt,
                 ) or []
             except Exception as exc:
                 audit["decisions"].append({"attempt": attempt, "decision": f"patch_error:{exc}"})
                 prior_evidence = f"Patch application errored: {exc}"
+                active_ports.sandbox.destroy(repo_dir, attempt_sandbox)
                 continue
+
             audit["lifecycle"].append(f"patch_generated:attempt_{attempt}:{len(patches)}")
             if not patches:
                 audit["decisions"].append({"attempt": attempt, "decision": "ai_produced_no_patch"})
                 prior_evidence = "The model produced no applicable patch for the candidate files."
+                active_ports.sandbox.destroy(repo_dir, attempt_sandbox)
                 continue
+
             attempted_rel_files = [
-                os.path.relpath(p.file_path, sandbox.sandbox_dir)
-                if str(p.file_path).startswith(sandbox.sandbox_dir) else str(p.file_path)
+                os.path.relpath(p.file_path, attempt_sandbox_dir)
+                if str(p.file_path).startswith(attempt_sandbox_dir) else str(p.file_path)
                 for p in patches
             ]
 
-            changed, diff = sandbox_changed_vs_repo(sandbox.sandbox_dir, repo_dir, candidate_abs)
-            evidence = active_ports.verifier.verify(sandbox.sandbox_dir)
+            changed, diff = sandbox_changed_vs_repo(attempt_sandbox_dir, repo_dir, candidate_abs)
+            evidence = active_ports.verifier.verify(attempt_sandbox_dir)
             evidence.changed_files = changed
             evidence.diff = diff[:20000]
             final_evidence = evidence
@@ -1339,9 +1419,6 @@ def run_hunt(
             audit.setdefault("interpretation", []).append({
                 **asdict(interp),
                 "attempt": attempt,
-                # Epistemic labels, not decorations: coverage relevance and
-                # failure-cause attribution are AI judgments. The mechanism
-                # proves tests ran green and scope held — nothing more.
                 "coverage_provenance": "ai-judged (no independent coverage mapping)",
                 "cause_provenance": "ai-attributed (no pre-patch baseline)",
             })
@@ -1354,11 +1431,7 @@ def run_hunt(
                     f"Scope violation: {scope_reason}. Changed={changed}. "
                     f"Declared={reasoning.affected_paths}. Test output:\n{evidence.output[:2000]}")
                 final_patches = []
-                try:
-                    _git(sandbox.sandbox_dir, "reset", "--hard", "HEAD")
-                    _git(sandbox.sandbox_dir, "clean", "-fd")
-                except Exception:
-                    pass
+                active_ports.sandbox.destroy(repo_dir, attempt_sandbox)
                 time.sleep(2.0)
                 continue
 
@@ -1373,11 +1446,7 @@ def run_hunt(
                     f"AI interpretation: cause={cause}, rationale={interp.rationale if interp else ''}."
                 )
                 final_patches = []
-                try:
-                    _git(sandbox.sandbox_dir, "reset", "--hard", "HEAD")
-                    _git(sandbox.sandbox_dir, "clean", "-fd")
-                except Exception:
-                    pass
+                active_ports.sandbox.destroy(repo_dir, attempt_sandbox)
                 time.sleep(2.0)
                 continue
 
@@ -1389,38 +1458,120 @@ def run_hunt(
                     f"unrelated={interp.unrelated_behavior} rationale={interp.rationale}. "
                     f"Output:\n{evidence.output[:2000]}")
                 final_patches = []
-                try:
-                    _git(sandbox.sandbox_dir, "reset", "--hard", "HEAD")
-                    _git(sandbox.sandbox_dir, "clean", "-fd")
-                except Exception:
-                    pass
+                active_ports.sandbox.destroy(repo_dir, attempt_sandbox)
                 time.sleep(2.0)
                 continue
 
-            # All green: mint the capability token. The sealer DERIVES
-            # acceptance from the sealed patches, the measured evidence,
-            # the interpretation object, and its own scope evaluation —
-            # no caller-supplied booleans. None means fail closed.
-            final_patches = patches
+            # Candidate passed attempt verification. Extract candidate artifact for Clean-Room Replay.
+            candidate_patches = patches
+            candidate_file_contents: list[tuple[str, str]] = []
+            for p in candidate_patches:
+                abs_p = p.file_path if os.path.isabs(p.file_path) else os.path.join(attempt_sandbox_dir, p.file_path)
+                rel = os.path.relpath(abs_p, attempt_sandbox_dir)
+                if os.path.isfile(abs_p):
+                    text = _read_file_text(abs_p)
+                    if text:
+                        candidate_file_contents.append((rel, text))
+
+            candidate_diff = "\n".join(p.unified_diff for p in candidate_patches)
+            patch_hash = _compute_patch_hash(candidate_diff)
+
+            # Destroy attempt sandbox immediately: zero state leaks
+            active_ports.sandbox.destroy(repo_dir, attempt_sandbox)
+            attempt_sandbox = None
+
+            # Clean-Room Final Replay: fresh pristine sandbox initialized from baseline
+            replay_box = active_ports.sandbox.create(repo_dir, ctx.commit_sha)
+            _sync_baseline_state(replay_box.sandbox_dir, repo_dir, baseline_dirty_snapshots)
+            audit["lifecycle"].append(f"clean_room_replay_created:{replay_box.sandbox_dir}")
+
+            replay_patches: list[AIAuthoredPatch] = []
+            _apply_candidate_files(replay_box.sandbox_dir, candidate_file_contents)
+
+            for p in candidate_patches:
+                rel = os.path.relpath(p.file_path, attempt_sandbox_dir) if str(p.file_path).startswith(attempt_sandbox_dir) else str(p.file_path)
+                replay_abs = os.path.join(replay_box.sandbox_dir, rel)
+                sealed_p = seal_ai_patch(
+                    SimpleNamespace(
+                        success=True,
+                        file_path=replay_abs,
+                        unified_diff=p.unified_diff,
+                        lines_changed=p.lines_changed,
+                        rules_applied=p.rules_applied,
+                    ),
+                    model=p.model,
+                    reasoning_attempt=attempt,
+                )
+                if sealed_p:
+                    replay_patches.append(sealed_p)
+
+            replay_candidate_abs = [os.path.join(replay_box.sandbox_dir, rel) for rel, _ in candidate_file_contents]
+            replay_changed, replay_diff = sandbox_changed_vs_repo(
+                replay_box.sandbox_dir, repo_dir, replay_candidate_abs)
+
+            replay_scope_ok, replay_scope_reason = evaluate_scope(
+                reasoning.affected_paths, reasoning.must_not_change, replay_changed)
+            if not replay_scope_ok:
+                audit["decisions"].append({
+                    "attempt": attempt,
+                    "decision": f"clean_room_scope_failed:{replay_scope_reason}"
+                })
+                prior_evidence = f"Clean-room replay scope check failed: {replay_scope_reason}."
+                active_ports.sandbox.destroy(repo_dir, replay_box)
+                continue
+
+            replay_evidence = active_ports.verifier.verify(replay_box.sandbox_dir)
+            replay_evidence.changed_files = replay_changed
+            replay_evidence.diff = replay_diff[:20000]
+            audit["lifecycle"].append(
+                f"clean_room_replay_verified:attempt_{attempt}:exit_{replay_evidence.exit_code}")
+            audit.setdefault("replay_verification", []).append({
+                "attempt": attempt,
+                "command": replay_evidence.command,
+                "exit_code": replay_evidence.exit_code,
+                "duration_ms": replay_evidence.duration_ms,
+                "output": replay_evidence.output[:3000],
+                "changed_files": replay_changed,
+            })
+
+            if replay_evidence.exit_code != 0 or not replay_evidence.command:
+                audit["decisions"].append({
+                    "attempt": attempt,
+                    "decision": f"clean_room_replay_failed:exit_{replay_evidence.exit_code}"
+                })
+                prior_evidence = (
+                    f"Clean-room replay verification failed (exit {replay_evidence.exit_code}). "
+                    "The patch alone was insufficient to pass verification from clean baseline."
+                )
+                active_ports.sandbox.destroy(repo_dir, replay_box)
+                continue
+
             final_repair = seal_verified_repair(
                 finding_id=finding.finding_id,
                 provider=finding.provider,
                 version_from=finding.version_from,
                 version_to=finding.version_to,
-                patches=patches,
-                sandbox_dir=sandbox.sandbox_dir,
-                evidence=evidence,
+                patches=replay_patches,
+                sandbox_dir=replay_box.sandbox_dir,
+                evidence=replay_evidence,
                 interpretation=interp,
                 affected_paths=reasoning.affected_paths,
                 must_not_change=reasoning.must_not_change,
                 reasoning_attempt=attempt,
-                model=patches[0].model if patches else "unknown",
+                model=replay_patches[0].model if replay_patches else "unknown",
+                baseline_sha=ctx.commit_sha,
+                patch_hash=patch_hash,
+                replay_evidence=replay_evidence,
             )
             if final_repair is None:
-                audit["decisions"].append({"attempt": attempt, "decision": "seal_refused"})
-                prior_evidence = "Repair seal refused despite green signals; failing closed."
-                final_patches = []
+                audit["decisions"].append({"attempt": attempt, "decision": "seal_refused_replay"})
+                prior_evidence = "Repair seal refused after clean-room replay; failing closed."
+                active_ports.sandbox.destroy(repo_dir, replay_box)
                 continue
+
+            final_patches = replay_patches
+            final_evidence = replay_evidence
+            winning_sandbox = replay_box
             break
 
         if final_repair is None:
@@ -1428,14 +1579,7 @@ def run_hunt(
                 snapshotter.restore()
             except Exception:
                 pass
-            # Every failed attempt lands on the avoid-list — including
-            # attempts whose patches did not survive verification. Failed
-            # repairs must be remembered as failures, never as patterns.
-            blame_files = [
-                os.path.relpath(p.file_path, sandbox.sandbox_dir)
-                if str(p.file_path).startswith(sandbox.sandbox_dir)
-                else str(p.file_path) for p in final_patches
-            ] or attempted_rel_files
+            blame_files = attempted_rel_files
             try:
                 record_failure(
                     repo_dir, finding.provider, finding.version_from, finding.version_to,
@@ -1458,17 +1602,15 @@ def run_hunt(
                 evidence_summary=(final_evidence.output[:1500] if final_evidence else ""),
             )
 
-        # Promote the sealed repair onto the real checkout. Binding is
-        # verified first (same repo, same SHA, same worktree); promotion
-        # accepts ONLY sealed patches and re-checks provenance plus path
-        # containment at this boundary — raw paths can never arrive here.
-        assert final_reasoning is not None and final_repair is not None
-        binding_ok, binding_reason = verify_sandbox_binding(sandbox, repo_dir)
+        # Promote the sealed repair onto the real checkout from the winning clean-room sandbox.
+        assert final_reasoning is not None and final_repair is not None and winning_sandbox is not None
+        binding_ok, binding_reason = verify_sandbox_binding(winning_sandbox, repo_dir)
         if not binding_ok:
             try:
                 snapshotter.restore()
             except Exception:
                 pass
+            active_ports.sandbox.destroy(repo_dir, winning_sandbox)
             audit["decisions"].append({"decision": f"binding_failed:{binding_reason}"})
             audit_path = write_audit(repo_dir, finding.finding_id,
                                      {**audit, "final": "refused_binding"})
@@ -1484,12 +1626,13 @@ def run_hunt(
                 evidence_summary="",
             )
         try:
-            promoted = _promote_sandbox(sandbox.sandbox_dir, repo_dir, final_patches)
+            promoted = _promote_sandbox(winning_sandbox.sandbox_dir, repo_dir, final_patches)
         except (TypeError, ValueError, OSError) as exc:
             try:
                 snapshotter.restore()
             except Exception:
                 pass
+            active_ports.sandbox.destroy(repo_dir, winning_sandbox)
             audit["decisions"].append({"decision": f"promotion_refused:{exc}"})
             audit_path = write_audit(repo_dir, finding.finding_id,
                                      {**audit, "final": "refused_promotion"})
@@ -1505,7 +1648,8 @@ def run_hunt(
                 evidence_summary="",
             )
         promo_ok, promo_reason = verify_promotion(
-            sandbox.sandbox_dir, repo_dir, promoted, baseline_dirty)
+            winning_sandbox.sandbox_dir, repo_dir, promoted, baseline_dirty)
+        active_ports.sandbox.destroy(repo_dir, winning_sandbox)
         if not promo_ok:
             try:
                 snapshotter.restore()
@@ -1569,7 +1713,6 @@ def run_hunt(
                      pr_decision="created" if pr_url else "deferred")
         return report
     finally:
-        active_ports.sandbox.destroy(repo_dir, sandbox)
         lock.release()
 
 

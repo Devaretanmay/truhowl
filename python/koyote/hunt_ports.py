@@ -232,6 +232,10 @@ class VerifiedRepair:
     model: str = "unknown"
     interpretation_rationale: str = ""
     verification_tier: str = "behavioral_verified"
+    baseline_sha: str = ""
+    patch_hash: str = ""
+    replay_exit_code: int = 0
+    replay_command: str = ""
     _seal: Any = field(default=None, repr=False, compare=False)
 
     def __post_init__(self) -> None:
@@ -252,6 +256,11 @@ class VerifiedRepair:
                 f"VerifiedRepair requires exit 0, got {self.test_exit_code}. "
                 "Unverified repairs can never become PRs."
             )
+        if self.replay_exit_code != 0:
+            raise ValueError(
+                f"VerifiedRepair requires clean-room replay exit 0, got {self.replay_exit_code}. "
+                "Repairs failing clean-room replay can never become PRs."
+            )
 
 
 def seal_verified_repair(
@@ -268,6 +277,9 @@ def seal_verified_repair(
     must_not_change: list[str] | tuple[str, ...] | None,
     reasoning_attempt: int = 1,
     model: str = "unknown",
+    baseline_sha: str = "",
+    patch_hash: str = "",
+    replay_evidence: Any = None,
 ) -> VerifiedRepair | None:
     """Mint the PR capability token from trusted evidence. Else None.
 
@@ -277,6 +289,7 @@ def seal_verified_repair(
       (isinstance + author re-checked; duck-typed lookalikes rejected);
     * sandbox binding — every patch path must live inside sandbox_dir;
     * execution reality — evidence must carry a real command and exit 0;
+    * clean-room replay — replay_evidence (if present) must carry exit 0;
     * interpretation — the interpretation OBJECT is inspected for
       solved / unrelated / needs-investigation (no caller booleans);
     * scope — evaluate_scope runs here over the measured changed files
@@ -285,6 +298,7 @@ def seal_verified_repair(
     Any failure returns None. Callers fail closed; no token exists to
     publish.
     """
+    import hashlib as _hashlib
     import os as _os
 
     if not patches:
@@ -303,6 +317,18 @@ def seal_verified_repair(
         test_duration = 0
     if not test_command or test_exit != 0:
         return None
+
+    replay_exit = test_exit
+    replay_cmd = test_command
+    if replay_evidence is not None:
+        try:
+            replay_exit = int(getattr(replay_evidence, "exit_code", -1))
+        except (TypeError, ValueError):
+            return None
+        replay_cmd = str(getattr(replay_evidence, "command", "") or "")
+        if replay_exit != 0 or not replay_cmd:
+            return None
+
     solved = bool(getattr(interpretation, "solved", False))
     unrelated = bool(getattr(interpretation, "unrelated_behavior", True))
     needs_more = bool(getattr(interpretation, "needs_more_investigation", True))
@@ -324,6 +350,9 @@ def seal_verified_repair(
     unified = "\n".join(diffs)[:20000]
     if not files or not unified:
         return None
+
+    computed_hash = patch_hash or _hashlib.sha256(unified.encode("utf-8")).hexdigest()
+
     rationale = str(getattr(interpretation, "rationale", "") or "")[:2000]
     cmd_lower = test_command.lower()
     is_compile_only = (
@@ -348,6 +377,10 @@ def seal_verified_repair(
             model=model or "unknown",
             interpretation_rationale=rationale,
             verification_tier=verification_tier,
+            baseline_sha=baseline_sha,
+            patch_hash=computed_hash,
+            replay_exit_code=replay_exit,
+            replay_command=replay_cmd,
             _seal=_SEAL,
         )
     except (TypeError, ValueError):

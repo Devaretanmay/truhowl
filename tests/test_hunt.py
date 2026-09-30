@@ -126,6 +126,27 @@ def test_context_is_evidence_only(tmp_path):
     assert len(ctx.commit_sha) == 40
     assert ctx.existing_tests == "pytest -q"
     assert any("app.py" in f for f in ctx.relevant_files)
+    assert "compiler_options" in ctx.environment
+
+
+def test_context_extracts_and_formats_environment(tmp_path):
+    repo = _make_repo(tmp_path)
+    with open(os.path.join(repo, "tsconfig.json"), "w") as f:
+        json.dump({
+            "compilerOptions": {
+                "module": "commonjs",
+                "target": "es2020",
+                "esModuleInterop": False,
+            }
+        }, f)
+    findings = list_findings(repo)
+    ctx = gather_context(repo, findings[0])
+    assert ctx.environment["compiler_options"]["es_module_interop"] is False
+    from koyote.hunt import _context_text
+    txt = _context_text(ctx)
+    assert "Repository Environment & Compiler Options:" in txt
+    assert "esModuleInterop: false" in txt
+    assert "TS2351" in txt
 
 
 # ── Scope control ──────────────────────────────────────────────────────────

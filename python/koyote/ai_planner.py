@@ -164,6 +164,17 @@ def build_reasoning_context(
         pass
     ctx["migration_details"] = migration_details
     ctx["changelog_url"] = changelog_url
+    try:
+        from koyote.env_context import extract_repo_environment, format_repo_environment
+        env_ctx = extract_repo_environment(
+            repo_dir,
+            relevant_files=ctx.get("wrappers", []),
+            target_pkg=provider_name,
+        )
+        ctx["environment"] = env_ctx.to_dict()
+        ctx["environment_text"] = format_repo_environment(env_ctx)
+    except Exception:
+        pass
     return ctx
 
 
@@ -206,6 +217,14 @@ class AIPatchPlanner:
             context = build_reasoning_context(
                 repo_dir, provider_name, from_version, to_version,
                 migration_details, changelog_url)
+        elif not context.get("environment_text") and repo_dir and os.path.isdir(repo_dir):
+            try:
+                from koyote.env_context import extract_repo_environment, format_repo_environment
+                env_ctx = extract_repo_environment(repo_dir, relevant_files=affected_files, target_pkg=provider_name)
+                context["environment"] = env_ctx.to_dict()
+                context["environment_text"] = format_repo_environment(env_ctx)
+            except Exception:
+                pass
 
         if len(affected_files) > 1 and "multi_file_plan" not in context:
             rel_files = [os.path.relpath(f, repo_dir) if os.path.isabs(f) else f for f in affected_files]
@@ -318,6 +337,25 @@ class AIPatchPlanner:
             sections.append(f"Coordinated Multi-File Plan:\n{context['multi_file_plan']}")
         if context.get("test_command"):
             sections.append(f"Repo verification: `{context['test_command']}` must keep passing")
+        if context.get("environment_text"):
+            sections.append(f"Repository Environment & Compiler Options:\n{context['environment_text']}")
+        elif context.get("environment"):
+            try:
+                from koyote.env_context import format_repo_environment_dict
+                formatted = format_repo_environment_dict(context["environment"])
+                if formatted:
+                    sections.append(f"Repository Environment & Compiler Options:\n{formatted}")
+            except Exception:
+                pass
+        elif repo_dir and os.path.isdir(repo_dir):
+            try:
+                from koyote.env_context import extract_repo_environment, format_repo_environment
+                env_ctx = extract_repo_environment(repo_dir, target_pkg=provider_name)
+                formatted = format_repo_environment(env_ctx)
+                if formatted:
+                    sections.append(f"Repository Environment & Compiler Options:\n{formatted}")
+            except Exception:
+                pass
         if context.get("wrappers"):
             sections.append("Wrappers to consider first:\n" + "\n".join(f"- {w}" for w in context["wrappers"][:10]))
         if context.get("callsites"):
@@ -365,6 +403,10 @@ class AIPatchPlanner:
             "   - When migrating createChatCompletion({ messages, ... }), migrate to chat.completions.create({ messages, ... }).\n"
             "   - Response payload unpacking must match the method: completions.create returns choices[0].text, while "
             "chat.completions.create returns choices[0].message.content.\n"
+            "8. COMPILER & MODULE INVARIANT: Strictly conform to the Repository Environment & Compiler Options.\n"
+            "   - Adhere to the tsconfig compilerOptions (especially esModuleInterop) and observed import conventions.\n"
+            "   - When esModuleInterop is false or disabled, do NOT use default import (`import X from 'pkg'`) for CommonJS modules; use named (`import { X } from 'pkg'`), namespace (`import * as X`), or `import X = require('pkg')` to prevent TS2351 non-constructable errors.\n"
+            "   - Preserve CommonJS require vs ESM import consistency with the target file.\n"
             "Emit surgical updates as search-and-replace blocks:\n"
             "<<<<<<< SEARCH\n"
             "exact lines to replace\n"

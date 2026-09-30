@@ -99,6 +99,92 @@ class TestAIPatchPlanner(unittest.TestCase):
         prompt_arg = mock_client.complete.call_args[1]["messages"][0]["content"]
         self.assertIn("Parameter 'req' implicitly has an 'any' type.", prompt_arg)
 
+    def test_build_reasoning_context_extracts_environment(self):
+        import json
+        from koyote.ai_planner import build_reasoning_context
+
+        with open(os.path.join(self.test_dir, "package.json"), "w") as f:
+            json.dump({
+                "name": "test-repo",
+                "type": "module",
+                "devDependencies": {"typescript": "^5.2.0"}
+            }, f)
+
+        with open(os.path.join(self.test_dir, "tsconfig.json"), "w") as f:
+            json.dump({
+                "compilerOptions": {
+                    "module": "esnext",
+                    "target": "es2022",
+                    "esModuleInterop": False,
+                    "strict": True
+                }
+            }, f)
+
+        ctx = build_reasoning_context(
+            repo_dir=self.test_dir,
+            provider_name="stripe",
+            from_version="11.0.0",
+            to_version="13.0.0",
+        )
+        self.assertIn("environment", ctx)
+        self.assertIn("environment_text", ctx)
+        self.assertEqual(ctx["environment"]["package_type"], "module")
+        self.assertIn("ECMAScript Module", ctx["environment_text"])
+        self.assertIn("esModuleInterop: false", ctx["environment_text"])
+        self.assertIn("TS2351", ctx["environment_text"])
+
+    def test_plan_and_apply_includes_environment_in_llm_prompt(self):
+        import json
+
+        with open(os.path.join(self.test_dir, "package.json"), "w") as f:
+            json.dump({
+                "name": "test-repo",
+                "dependencies": {"stripe": "^11.0.0"}
+            }, f)
+
+        with open(os.path.join(self.test_dir, "tsconfig.json"), "w") as f:
+            json.dump({
+                "compilerOptions": {
+                    "module": "commonjs",
+                    "esModuleInterop": False,
+                }
+            }, f)
+
+        sample_file = os.path.join(self.test_dir, "client.ts")
+        with open(sample_file, "w") as f:
+            f.write("import { Stripe } from 'stripe';\nconst stripe = new Stripe('key');\n")
+
+        mock_client = MagicMock(spec=LLMClient)
+        mock_client.complete.return_value = LLMResponse(
+            content=(
+                "<<<<<<< SEARCH\n"
+                "const stripe = new Stripe('key');\n"
+                "=======\n"
+                "const stripe = new Stripe('new_key');\n"
+                ">>>>>>> REPLACE"
+            ),
+            model="gpt-4o",
+        )
+
+        planner = AIPatchPlanner(client=mock_client)
+        planner.plan_and_apply(
+            repo_dir=self.test_dir,
+            affected_files=["client.ts"],
+            provider_name="stripe",
+            from_version="11.0.0",
+            to_version="13.0.0",
+            dry_run=False,
+        )
+
+        user_prompt = mock_client.complete.call_args[1]["messages"][0]["content"]
+        system_prompt = mock_client.complete.call_args[1]["system_prompt"]
+
+        self.assertIn("Repository Environment & Compiler Options:", user_prompt)
+        self.assertIn("esModuleInterop: false", user_prompt)
+        self.assertIn("TS2351", user_prompt)
+        self.assertIn("Target Package Import Pattern: `import { Stripe } from 'stripe'`", user_prompt)
+        self.assertIn("COMPILER & MODULE INVARIANT", system_prompt)
+
 
 if __name__ == "__main__":
     unittest.main()
