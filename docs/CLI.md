@@ -96,6 +96,39 @@ truhowl ask "are we ready to migrate openai?"
 truhowl ask "what breaks if we upgrade stripe?" --json
 ```
 
+Ask reads agent case state first, then local evidence. It is read-only by
+default. Action intents print the exact agent command; `--act` executes
+verification runs:
+
+```bash
+truhowl ask "migrate everything you can safely verify"
+truhowl ask "migrate everything you can safely verify" --act
+truhowl ask "show me migrations waiting for attention"
+```
+
+---
+
+### `truhowl agent watch|run|cases|show`
+The agent loop. `watch` discovers an external change, calculates impact,
+and creates a MigrationCase without repairing anything. `run` drives the
+case lifecycle end-to-end (plan, repair, verify, record) through the
+unchanged verification engine. `cases` lists, `show` explains from
+persisted evidence.
+
+```bash
+truhowl agent watch --provider stripe --from 19 --to 20 --repo .
+truhowl agent cases
+truhowl agent cases --state refused
+truhowl agent show stripe-3a9c79
+truhowl agent run stripe-3a9c79
+truhowl agent run stripe-3a9c79 --repo billing-api --create-pr --github-repo owner/billing-api
+```
+
+Per-repository lifecycle: `detected` → `analyzing` → `planning` →
+`repairing` → `verifying` → `verified` (→ `pr-ready`), or `refused` /
+`needs-attention`. State persists in `.truhowl/agent/store.json`; every
+explanation comes from that evidence.
+
 ---
 
 ## 2. Configuration & Diagnostics

@@ -6,6 +6,7 @@ from . import hooks as hooks
 from . import autopatch as autopatch
 from . import graph as graph
 from . import audit as audit
+from . import agent as agent
 from . import maintenance as maintenance
 from . import maintenance_agents as maintenance_agents
 from . import hunt as hunt
@@ -37,6 +38,7 @@ __all__ = [
     "autopatch",
     "graph",
     "audit",
+    "agent",
     "maintenance",
     "maintenance_agents",
     "hunt",

@@ -1,0 +1,51 @@
+"""Truhowl agent: persistent maintenance-agent domain model and orchestration."""
+
+from truhowl.agent.models import (
+    ACTIONABLE_STATES,
+    ANALYZING,
+    DETECTED,
+    NEEDS_ATTENTION,
+    PLANNING,
+    PR_READY,
+    REFUSED,
+    REPAIRING,
+    TERMINAL_STATES,
+    VERIFIED,
+    VERIFYING,
+)
+from truhowl.agent.service import (
+    cases_needing_attention,
+    create_case,
+    discover_external_change,
+    explain_case,
+    get_case,
+    list_cases,
+    resolve_workspace,
+    run_case,
+    run_repo,
+    watch,
+)
+
+__all__ = [
+    "ACTIONABLE_STATES",
+    "ANALYZING",
+    "DETECTED",
+    "NEEDS_ATTENTION",
+    "PLANNING",
+    "PR_READY",
+    "REFUSED",
+    "REPAIRING",
+    "TERMINAL_STATES",
+    "VERIFIED",
+    "VERIFYING",
+    "cases_needing_attention",
+    "create_case",
+    "discover_external_change",
+    "explain_case",
+    "get_case",
+    "list_cases",
+    "resolve_workspace",
+    "run_case",
+    "run_repo",
+    "watch",
+]

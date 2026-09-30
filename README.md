@@ -66,6 +66,10 @@ Canonical product workflow:
 - **Ask** (`truhowl ask`): Answers impact and failure questions from local state. Read-only, no AI key needed.
 - **Migrate** (`truhowl migrate <finding>`): Autonomous migration repair worker: plans the migration, edits files, executes tests in an isolated sandbox, repairs failures, and opens a verified PR.
 - **Consult** (`truhowl consult`): Deep AI reasoning, architectural impact diagnosis, files a GitHub Issue, modifies zero code.
+
+Agent loop (no manual finding IDs): `truhowl agent watch` discovers a
+change and opens a MigrationCase; `truhowl agent run` drives it
+end-to-end; `truhowl agent show` explains from persisted evidence.
 See [GitHub App behavior](docs/GITHUB_APP.md).
 
 Truhowl also watches across connected repositories: a push in one repo is an

@@ -1879,11 +1879,65 @@ def cmd_logout(args):
 
 
 def cmd_ask(args):
-    """Answer maintenance questions from local state (read-only, no AI key needed)."""
+    """Answer maintenance questions from agent state and local evidence.
+
+    Read-only by default. Action intents print the exact agent command;
+    --act executes verification runs (PR creation still needs an explicit
+    `agent run --create-pr --github-repo`).
+    """
     question = " ".join(getattr(args, "question", []) or []).strip()
     root_path = os.path.abspath(getattr(args, "path", ".") or ".")
     as_json = bool(getattr(args, "json", False))
+    act = bool(getattr(args, "act", False))
     q = question.lower()
+
+    from truhowl.agent import service as agent_svc
+    from truhowl.config import find_workspace_root as _find_ws
+    workspace = _find_ws(root_path) or root_path
+
+    def _cases_for(provider: str) -> list:
+        return [c for c in agent_svc.list_cases(workspace)
+                if str(c.get("provider", "")).lower() == provider.lower()]
+
+    if any(w in q for w in ("waiting", "attention", "stuck", "blocked", "refused")):
+        stuck = agent_svc.cases_needing_attention(workspace)
+        if as_json:
+            print(json.dumps({"question": question, "cases": stuck}, indent=2, default=str))
+            return
+        if not stuck:
+            print("Nothing waiting for attention. All recorded cases are resolved or in progress.")
+            return
+        for c in stuck:
+            print(f"{c['case_id']}: {c['provider']} {c['version_from']} -> {c['version_to']}")
+            for key, info in c["repos"].items():
+                print(f"  [{info['state']}] {key}: {info['reason'][:160]}")
+        return
+
+    if any(w in q for w in ("migrate everything", "everything you can", "safely verify",
+                            "open pr", "open the pr", "verified migrations")):
+        runnable = []
+        for c in agent_svc.list_cases(workspace):
+            pending = [k for k, s in c["repo_states"].items() if s == "detected"]
+            if pending:
+                runnable.append((c["case_id"], pending))
+        if as_json:
+            print(json.dumps({"question": question, "runnable": runnable}, indent=2))
+            return
+        if not runnable:
+            print("No pending (detected) migrations to run.")
+            print("Watch a change first: truhowl agent watch --provider stripe --from 19 --to 20 --repo .")
+            return
+        if not act:
+            print("Proposed runs (re-run with --act to execute):")
+            for case_id, keys in runnable:
+                print(f"  truhowl agent run {case_id}")
+            return
+        for case_id, _keys in runnable:
+            print(f"== {case_id} ==")
+            for res in agent_svc.run_case(workspace, case_id):
+                print(f"  [{res['state']}] {res['repo_key']}"
+                      + (f"  reason: {res['reason'][:160]}" if res.get("reason") else ""))
+        return
 
     try:
         reg = get_default_registry()
@@ -1897,6 +1951,17 @@ def cmd_ask(args):
     provider = next((p for p in known if p and p in q), None)
 
     if any(w in q for w in ("fail", "refus", "reject", "abort", "why", "error")):
+        if provider:
+            for c in reversed(_cases_for(provider)):
+                stuck = {k: s for k, s in c["repo_states"].items()
+                         if s in ("refused", "needs-attention")}
+                if stuck:
+                    if as_json:
+                        print(json.dumps({"question": question, "answer": "case-refusals",
+                                          "case_id": c["case_id"], "repos": stuck}, indent=2))
+                    else:
+                        print(agent_svc.explain_case(workspace, c["case_id"]))
+                    return
         history = get_migration_history(root_path)
         if not history:
             if as_json:
@@ -1921,6 +1986,16 @@ def cmd_ask(args):
         return
 
     if provider and any(w in q for w in ("affect", "impact", "break", "upgrade", "migrate", "change", "safe", "touch")):
+        cases = _cases_for(provider)
+        if cases:
+            c = cases[-1]
+            if as_json:
+                print(json.dumps({"question": question, "answer": "case-impact",
+                                  "case_id": c["case_id"],
+                                  "repo_states": c["repo_states"]}, indent=2))
+            else:
+                print(agent_svc.explain_case(workspace, c["case_id"]))
+            return
         from truhowl.maintenance_agents import analyze_impact
         res = analyze_impact(root_path, provider)
         if as_json:
@@ -1954,6 +2029,83 @@ def cmd_ask(args):
     print('  truhowl ask "why did the billing migration fail?"')
     print('  truhowl ask "are we ready to migrate openai?"')
     print("Related: truhowl status, truhowl check, truhowl migrate")
+
+
+def _agent_workspace() -> str:
+    from truhowl.agent.service import resolve_workspace
+    return resolve_workspace(os.path.abspath("."))
+
+
+def _agent_repo_keys(workspace: str, values: list[str]) -> list[str] | None:
+    """Map --repo values (keys or paths) to case repo keys. None means all."""
+    if not values:
+        return None
+    from truhowl.agent.service import load_store
+    store = load_store(workspace)
+    keys: list[str] = []
+    for v in values:
+        if v in store.repos:
+            keys.append(v)
+            continue
+        abs_v = os.path.abspath(v)
+        match = next((k for k, r in store.repos.items()
+                      if os.path.abspath(r.get("path", "")) == abs_v), None)
+        keys.append(match or abs_v)
+    return keys
+
+
+def cmd_agent_watch(args):
+    from truhowl.agent import service as agent
+    workspace = _agent_workspace()
+    repos = getattr(args, "repos", []) or ["."]
+    case = agent.watch(workspace, args.provider, args.from_version, args.to_version, repos)
+    print(f"Case {case.case_id}: {case.provider} {case.version_from} -> {case.version_to}")
+    for r in case.repos:
+        usage = next((u for u in agent.load_store(workspace).usages
+                      if u.get("repo_key") == r.repo_key), {})
+        print(f"  [{r.state}] {r.repo_key}: "
+              f"{len(usage.get('files', []))} files, {usage.get('callsites_count', 0)} callsites")
+    print(f"Next: truhowl agent run {case.case_id}")
+
+
+def cmd_agent_run(args):
+    from truhowl.agent import service as agent
+    workspace = _agent_workspace()
+    keys = _agent_repo_keys(workspace, getattr(args, "repos", []) or [])
+    results = agent.run_case(
+        workspace, args.case_id, keys,
+        create_pr=bool(getattr(args, "create_pr", False)),
+        github_repo=getattr(args, "github_repo", None),
+        llm_api_key=getattr(args, "api_key", None),
+        llm_model=getattr(args, "model", None),
+        llm_base_url=getattr(args, "base_url", None),
+    )
+    for res in results:
+        line = f"  [{res['state']}] {res['repo_key']}"
+        if res.get("pr_url"):
+            line += f"  PR: {res['pr_url']}"
+        if res.get("reason"):
+            line += f"  reason: {res['reason'][:160]}"
+        print(line)
+
+
+def cmd_agent_cases(args):
+    from truhowl.agent import service as agent
+    workspace = _agent_workspace()
+    cases = agent.list_cases(workspace, getattr(args, "state", None))
+    if not cases:
+        print("No migration cases recorded for this workspace yet.")
+        print("Run: truhowl agent watch --provider stripe --from 19 --to 20 --repo .")
+        return
+    for c in cases:
+        print(f"{c['case_id']}: {c['provider']} {c['version_from']} -> {c['version_to']}")
+        for key, state in c["repo_states"].items():
+            print(f"  [{state}] {key}")
+
+
+def cmd_agent_show(args):
+    from truhowl.agent import service as agent
+    print(agent.explain_case(_agent_workspace(), args.case_id))
 
 
 def cmd_auth(args):
@@ -2941,6 +3093,30 @@ def main():
     ask_p.add_argument("question", nargs="*", help="Question, e.g. \"what breaks if we upgrade stripe?\"")
     ask_p.add_argument("--path", default=".", help="Repository root path (default: .)")
     ask_p.add_argument("--json", action="store_true", help="Output machine-readable JSON")
+    ask_p.add_argument("--act", action="store_true",
+                       help="Execute the proposed agent run (default prints the command)")
+
+    agent_parser = subparsers.add_parser("agent", help="Truhowl agent: watch changes, run cases, inspect state")
+    agent_sub = agent_parser.add_subparsers(dest="agent_command")
+    agent_watch_p = agent_sub.add_parser("watch", help="Discover change, calculate impact, create case (no repairs)")
+    agent_watch_p.add_argument("--provider", required=True, help="Target provider (e.g. stripe)")
+    agent_watch_p.add_argument("--from", dest="from_version", required=True, help="Current version")
+    agent_watch_p.add_argument("--to", dest="to_version", required=True, help="Target version")
+    agent_watch_p.add_argument("--repo", action="append", default=[], dest="repos",
+                               help="Repo path (repeatable; default: .)")
+    agent_run_p = agent_sub.add_parser("run", help="Run case lifecycle end-to-end (plan, repair, verify, record)")
+    agent_run_p.add_argument("case_id", help="Migration case id (see truhowl agent cases)")
+    agent_run_p.add_argument("--repo", action="append", default=[], dest="repos",
+                             help="Repo key or path (repeatable; default: all case repos)")
+    agent_run_p.add_argument("--create-pr", action="store_true", help="Open GitHub PR for verified repos")
+    agent_run_p.add_argument("--github-repo", default=None, help="GitHub repo (owner/repo) for PR creation")
+    agent_run_p.add_argument("--model", default=None, help="BYOK LLM model name")
+    agent_run_p.add_argument("--api-key", default=None, help="BYOK LLM API key")
+    agent_run_p.add_argument("--base-url", default=None, help="Custom LLM base URL")
+    agent_cases_p = agent_sub.add_parser("cases", help="List migration cases and repo states")
+    agent_cases_p.add_argument("--state", default=None, help="Filter by repo state (e.g. verified, refused)")
+    agent_show_p = agent_sub.add_parser("show", help="Explain a case from persisted evidence")
+    agent_show_p.add_argument("case_id", help="Migration case id")
 
     index_p = subparsers.add_parser("index", help="Index repository dependencies, callsites, and construct graph")
     index_p.add_argument("path", nargs="?", default=".", help="Repository root path (default: .)")
@@ -3059,6 +3235,18 @@ def main():
             workflow_parser.print_help()
     elif args.command == "_exec_shim":
         cmd_exec_shim(args)
+    elif args.command == "agent":
+        acmd = getattr(args, "agent_command", None)
+        if acmd == "watch":
+            cmd_agent_watch(args)
+        elif acmd == "run":
+            cmd_agent_run(args)
+        elif acmd == "cases":
+            cmd_agent_cases(args)
+        elif acmd == "show":
+            cmd_agent_show(args)
+        else:
+            agent_parser.print_help()
     else:
         parser.print_help()
 
