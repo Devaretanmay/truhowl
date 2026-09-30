@@ -332,6 +332,20 @@ def run_maintenance_cycle(
             f"Provider: {p_spec.display_name} {actual_from} -> {actual_to}\n"
             f"Strategy: {decision.strategy} ({decision.reason})\n"
         )
+        # Leave an avoidance trace: this migration is unverified here, so
+        # future runs reason from evidence instead of retrying blindly.
+        # Trusted patterns stay empty; only the failed-patterns list grows.
+        try:
+            _q_impact = analyze_impact(repo_dir, provider_name)
+            _q_files = [os.path.relpath(f, repo_dir) if os.path.isabs(f) else f
+                        for f in (_q_impact.affected_files or [])]
+        except Exception:
+            _q_files = []
+        try:
+            record_failure(repo_dir, provider_name, actual_from, actual_to,
+                           f"unverified ({quarantine_error})", _q_files)
+        except Exception:
+            pass
 
     pr_url = None
     pr_number = None

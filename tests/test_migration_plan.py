@@ -20,10 +20,8 @@ import json
 import os
 import subprocess
 
-import pytest
-
 from truhowl import hunt as hunt_agent
-from truhowl.hunt import VerificationEvidence, run_verification
+from truhowl.hunt import run_verification
 from truhowl.migration_knowledge import (
     DEVELOPMENT_FIXTURE_CONTRACT,
     OFFICIAL_MIGRATION_GUIDE,
@@ -34,7 +32,6 @@ from truhowl.migration_knowledge import (
 from truhowl.migration_plan import (
     NonDetectable,
     build_migration_plan,
-    detections_for,
     detection_from_change,
     residual_hits,
 )
