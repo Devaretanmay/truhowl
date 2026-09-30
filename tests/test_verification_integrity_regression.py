@@ -20,7 +20,6 @@ import pytest
 from koyote import hunt as hunt_agent
 from koyote.hunt import (
     HuntInterpretation,
-    HuntReasoning,
     VerificationEvidence,
     list_findings,
     run_hunt,

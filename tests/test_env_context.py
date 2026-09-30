@@ -9,8 +9,6 @@ import tempfile
 import unittest
 
 from koyote.env_context import (
-    CompilerOptions,
-    RepoEnvironmentContext,
     analyze_import_styles,
     extract_package_json,
     extract_repo_environment,
@@ -18,7 +16,6 @@ from koyote.env_context import (
     format_repo_environment,
     format_repo_environment_dict,
     parse_jsonc,
-    strip_json_comments,
 )
 
 
