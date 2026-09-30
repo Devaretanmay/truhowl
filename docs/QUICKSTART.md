@@ -20,7 +20,7 @@ pip install truhowl
 cd my-project
 
 truhowl init              # Detects repo, checks GitHub & AI, runs AST evidence scan
-truhowl auth              # Connect your BYOK AI provider (Anthropic, OpenAI, Ollama)
+truhowl login             # Connect your BYOK AI provider (Anthropic, OpenAI, Ollama)
 ```
 
 Outputs your repository readiness:
@@ -35,8 +35,9 @@ Outputs your repository readiness:
 READY
 
 Truhowl can now:
+  Check   — detect breaking SDK/API drift (truhowl check)
+  Migrate — repair breaking upgrades and verify PRs (truhowl migrate <finding>)
   Consult — find and explain maintenance issues (truhowl consult)
-  Work    — repair, verify, and open PRs (truhowl work)
 ```
 
 ---
@@ -58,15 +59,16 @@ truhowl graph .
 
 ---
 
-## 4. Consult First, Then Work (Howl & Hunt)
+## 4. Consult First, Then Migrate
 
-New teams start in Consult (Howl): same AI reasoning, zero code changes, findings filed
-as a GitHub Issue. Graduate to Work (Hunt) when the reasoning earns it.
+New teams start in Consult: same AI reasoning, zero code changes, findings filed
+as a GitHub Issue. Graduate to Migrate when the reasoning earns it.
 
 ```bash
-truhowl consult . --repo owner/repo   # Assess only, files an Issue (Howl)
+truhowl consult . --repo owner/repo   # Assess only, files an Issue
 truhowl check .                       # note the finding ID, e.g. stripe-3a9c79
-truhowl hunt stripe-3a9c79            # Repair, verify, report (Hunt)
+truhowl ask "what breaks if we upgrade stripe?"  # Read-only impact answer
+truhowl migrate stripe-3a9c79         # Repair, verify, report
 ```
 
 See [GitHub App behavior](GITHUB_APP.md) for modes, triggers, and bot config.
@@ -79,11 +81,11 @@ there is no engine flag to choose. Unsafe repairs refuse loudly with zero files 
 
 ```bash
 # Auto-detect provider and repair:
-truhowl work .
+truhowl migrate .
 
 # Targeted migration and open PR:
-truhowl work . --provider stripe
-truhowl work . --provider openai --from v3.28.0 --to v4.0.0 --create-pr --repo owner/repo
+truhowl migrate . --provider stripe
+truhowl migrate . --provider openai --from v3.28.0 --to v4.0.0 --create-pr --repo owner/repo
 ```
 
 ---

@@ -53,21 +53,23 @@ AI reasons; native tools provide evidence and execute/verify
 ```
 
 ```bash
-truhowl auth              # Connect BYOK AI provider (Anthropic, OpenAI, Ollama)
+truhowl login             # Connect BYOK AI provider (Anthropic, OpenAI, Ollama)
 truhowl doctor            # Environment, credentials, test runner, repository health
 truhowl check .           # Read-only drift & affected usage scan
-truhowl hunt <finding>    # Plan, edit, build/test, repair, and prepare/open PR
+truhowl ask "what breaks if we upgrade stripe?"  # Read-only impact answer
+truhowl migrate <finding> # Plan, edit, build/test, repair, and prepare/open PR
 truhowl consult .         # Report-only: AI assessment as a GitHub Issue, modifies nothing
 ```
 
 Canonical product workflow:
 - **Check** (`truhowl check`): Detects breaking SDK/API drift, maps affected callsites. Zero tokens, zero writes.
-- **Hunt** (`truhowl hunt <finding>`): Autonomous migration repair worker: plans the migration, edits files, executes tests in an isolated sandbox, repairs failures, and opens a verified PR.
+- **Ask** (`truhowl ask`): Answers impact and failure questions from local state. Read-only, no AI key needed.
+- **Migrate** (`truhowl migrate <finding>`): Autonomous migration repair worker: plans the migration, edits files, executes tests in an isolated sandbox, repairs failures, and opens a verified PR.
 - **Consult** (`truhowl consult`): Deep AI reasoning, architectural impact diagnosis, files a GitHub Issue, modifies zero code.
 See [GitHub App behavior](docs/GITHUB_APP.md).
 
 Truhowl also watches across connected repositories: a push in one repo is an
-observation that can confirm into a Howl Issue on another repo's affected
+observation that can confirm into an advisory Issue on another repo's affected
 work — never an automatic alert. See
 [Cross-Repository Active-Work Impact](docs/CROSS_REPO_WORK_IMPACT.md).
 
@@ -157,7 +159,7 @@ Active Graph Edges:      28
 
 ---
 
-## 3. Autonomous Repair (`truhowl hunt`)
+## 3. Autonomous Repair (`truhowl migrate`)
 
 Every `truhowl check` finding carries an ID. Hunt starts from that finding —
 rebuilding live context (branch, exact SHA, active work, callsites, tests,
@@ -167,11 +169,11 @@ cannot be established:
 
 ```bash
 truhowl check .                # read-only audit; note the finding ID
-truhowl hunt stripe-3a9c79     # full reasoning → repair → sandbox → verify cycle
+truhowl migrate stripe-3a9c79     # full reasoning → repair → sandbox → verify cycle
 
 # Provider-driven form (same engine, explicit target):
-truhowl work . --provider stripe
-truhowl work . --provider openai --from v3.28.0 --to v4.0.0 --create-pr --repo owner/repo
+truhowl migrate . --provider stripe
+truhowl migrate . --provider openai --from v3.28.0 --to v4.0.0 --create-pr --repo owner/repo
 ```
 
 ### What Hunt guarantees:

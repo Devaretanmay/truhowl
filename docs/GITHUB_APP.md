@@ -66,7 +66,7 @@ New installations start in `consult`: accurate Issues build trust in the reasoni
 
 Truhowl cleanly defines its product abstractions:
 - **Consult (`@howl` / `truhowl consult`)**: Explains maintenance problems with deep AI reasoning. For any detected maintenance problem (dependency drift, contract breaking bump, external change), Consult files a **GitHub Issue** detailing what changed, what is affected, why, what should change, and what must NOT change. When invoked on a PR (`@howl`), it provides an advisory impact breakdown on the PR thread. Consult is strictly read-only: its GitHub client possesses read-only permissions and **never modifies files, never commits, and never opens PRs**.
-- **Work (`@hunt` / `truhowl work` / `truhowl hunt <id>`)**: Autonomous repair worker with repository write authority. Reasons with AI, authors the patch with AI, executes the real test suite in an isolated checkout, and delivers a verified merge-ready **GitHub PR** with BLAKE3 cryptographic receipts only on a sealed, green, scope-clean repair. Anything else fails closed without opening a PR.
+- **Migrate (`truhowl migrate <id>`, deprecated alias `truhowl hunt`)**: Autonomous repair worker with repository write authority. Reasons with AI, authors the patch with AI, executes the real test suite in an isolated checkout, and delivers a verified merge-ready **GitHub PR** with BLAKE3 cryptographic receipts only on a sealed, green, scope-clean repair. Anything else fails closed without opening a PR.
 
 ## 6. Anatomy of a review
 

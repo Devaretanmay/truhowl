@@ -55,7 +55,7 @@ Execute a targeted repair starting from a specific finding ID, verified in an is
 
 ```bash
 truhowl check .                # Note the finding ID, e.g. stripe-df9562
-truhowl hunt stripe-df9562     # Full reasoning -> repair -> sandbox -> verify cycle
+truhowl migrate stripe-df9562     # Full reasoning -> repair -> sandbox -> verify cycle
 ```
 
 ### What You Observe:

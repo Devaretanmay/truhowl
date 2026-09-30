@@ -167,7 +167,7 @@ def cmd_init(args):
     print()
     print("Truhowl can now:")
     print("  Check   — detect breaking SDK/API drift (truhowl check)")
-    print("  Hunt    — repair breaking upgrades and verify PRs (truhowl hunt <finding>)")
+    print("  Migrate — repair breaking upgrades and verify PRs (truhowl migrate <finding>)")
     print("  Consult — find and explain maintenance issues (truhowl consult)")
 
 
@@ -202,8 +202,8 @@ def cmd_status(args):
     print(f"Active repo:        {active}")
     print(f"Repositories:       {repo_count}")
     print(f"Repository Key:     {repo_key}")
-    print(f"Hunt (Repair):      {hunt_state}")
-    print(f"Consult (Howl):     {howl_state}")
+    print(f"Migrate (repair):     {hunt_state}")
+    print(f"Consult (advisory):   {howl_state}")
     print(f"Status:             {index_state}\n")
 
     ws_root = find_workspace_root()
@@ -287,7 +287,7 @@ def cmd_doctor(args):
     print(f"Knowledge Base:     {kb_state}")
     print(f"Test command:       {tcmd or 'NOT FOUND — verification will fail closed'}")
     print(f"Monitoring:         {mon_str}")
-    print("\nLocal Flow:  truhowl check → truhowl hunt <finding> (or truhowl consult)")
+    print("\nLocal Flow:  truhowl check → truhowl migrate <finding> (or truhowl consult)")
     print("Hosted Flow: Install GitHub App → Choose repos → Auto-index → Connect BYOK → READY")
     print("================================================================================")
 
@@ -1768,7 +1768,7 @@ def cmd_inventory(args):
     critical = sum(1 for d in deps if d.get("health") in ("Deprecated", "Retired"))
     if critical > 0:
         print(f"[ALERT] {critical} critical dependencies require immediate attention.")
-        print("   Run `truhowl work` to start AI-authored repair and verified PR delivery.")
+        print("   Run `truhowl migrate` to start AI-authored repair and verified PR delivery.")
 
 
 
@@ -1851,7 +1851,7 @@ def cmd_reviews(args):
     history = get_migration_history(root_path)
     if not history:
         print("No Truhowl maintenance runs recorded for this repository yet.")
-        print("Run `truhowl fix` to create the first entry.")
+        print("Run `truhowl migrate` to create the first entry.")
         return
     print(f"Truhowl maintenance runs ({len(history)}):")
     for record in history[-20:]:
@@ -1876,6 +1876,84 @@ def cmd_logout(args):
     cmd_auth(argparse.Namespace(
         status=False, clear=True, provider=None, api_key=None,
         model=None, base_url=None, path=".", installation=None, repo=None))
+
+
+def cmd_ask(args):
+    """Answer maintenance questions from local state (read-only, no AI key needed)."""
+    question = " ".join(getattr(args, "question", []) or []).strip()
+    root_path = os.path.abspath(getattr(args, "path", ".") or ".")
+    as_json = bool(getattr(args, "json", False))
+    q = question.lower()
+
+    try:
+        reg = get_default_registry()
+        specs = getattr(reg, "providers", None) or getattr(reg, "specs", None) or []
+        known = [str(getattr(p, "provider_name", "") or "").lower() for p in specs]
+    except Exception:
+        known = []
+    for fallback in ("stripe", "openai", "anthropic", "supabase", "twilio", "aws"):
+        if fallback not in known:
+            known.append(fallback)
+    provider = next((p for p in known if p and p in q), None)
+
+    if any(w in q for w in ("fail", "refus", "reject", "abort", "why", "error")):
+        history = get_migration_history(root_path)
+        if not history:
+            if as_json:
+                print(json.dumps({"question": question, "answer": "no-recorded-migrations", "runs": []}, indent=2))
+            else:
+                print("No Truhowl maintenance runs recorded for this repository yet.")
+                print("Run `truhowl migrate` to create the first entry.")
+            return
+        recent = history[-5:]
+        if as_json:
+            print(json.dumps({"question": question, "answer": "recent-runs", "runs": recent}, indent=2, default=str))
+            return
+        print("Recent Truhowl maintenance runs (newest last):")
+        for record in recent:
+            ok = record.get("test_exit_code") == 0 and record.get("blast_radius_zero")
+            outcome = "VERIFIED" if ok else "REFUSED"
+            print(f"  [{outcome}] {record.get('provider_name', '?')} "
+                  f"{record.get('from_version', '?')} -> {record.get('to_version', '?')}")
+            reason = record.get("refusal_reason") or record.get("summary") or ""
+            if reason:
+                print(f"           {str(reason)[:200]}")
+        return
+
+    if provider and any(w in q for w in ("affect", "impact", "break", "upgrade", "migrate", "change", "safe", "touch")):
+        from truhowl.maintenance_agents import analyze_impact
+        res = analyze_impact(root_path, provider)
+        if as_json:
+            print(json.dumps({
+                "question": question,
+                "provider": res.provider,
+                "affected_files": res.affected_files,
+                "callsites_count": res.callsites_count,
+                "wrapper_files": res.wrapper_files,
+            }, indent=2))
+            return
+        print(f"{res.provider}: {len(res.affected_files)} file(s), {res.callsites_count} callsite(s) affected.")
+        for w in res.wrapper_files[:10]:
+            print(f"  [wrapper] {w}")
+        for f in res.affected_files[:20]:
+            if f not in (res.wrapper_files or []):
+                print(f"  [callsite] {f}")
+        if not res.affected_files:
+            print("No affected usage detected. Upgrade looks safe, verification still required.")
+        return
+
+    if any(w in q for w in ("status", "health", "watch", "monitor", "know", "connect", "ready", "setup")):
+        return cmd_status(args)
+
+    if as_json:
+        print(json.dumps({"question": question, "answer": "usage",
+                          "hint": "ask about impact, failures, or status"}, indent=2))
+        return
+    print("Ask Truhowl about this repository (read-only). Examples:")
+    print('  truhowl ask "what breaks if we upgrade stripe?"')
+    print('  truhowl ask "why did the billing migration fail?"')
+    print('  truhowl ask "are we ready to migrate openai?"')
+    print("Related: truhowl status, truhowl check, truhowl migrate")
 
 
 def cmd_auth(args):
@@ -1979,7 +2057,7 @@ def cmd_auth(args):
         print("[OK] Codebase indexed successfully. Dependency call graph ready.")
         print("\nNext steps:")
         print("  1. Run `truhowl check` to inspect external dependencies and drift.")
-        print("  2. Run `truhowl fix` to autonomously resolve migrations.")
+        print("  2. Run `truhowl migrate` to autonomously resolve migrations.")
     except Exception as exc:
         print(f"[NOTICE] Initial indexing notice: {exc}")
 
@@ -2022,16 +2100,16 @@ def cmd_check(args):
                 print()
                 print("Run:")
                 for f in findings[:5]:
-                    print(f"  truhowl hunt {f.finding_id}")
+                    print(f"  truhowl migrate {f.finding_id}")
         except Exception:
             pass
 
 
 def cmd_fix(args):
-    """Run autonomous repair: finding-based Hunt when given an <id>, else provider flow."""
+    """Run autonomous repair: finding-based migration when given an <id>, else provider flow."""
     if _hunt_finding_requested(args):
         return cmd_hunt(args)
-    if getattr(args, "command", "") in ("hunt", "@hunt") and not getattr(args, "detect", False):
+    if getattr(args, "command", "") in ("hunt", "@hunt", "migrate") and not getattr(args, "detect", False):
         repo_dir = _resolve_hunt_repo(getattr(args, "root_dir", ".") or ".")
         try:
             from truhowl import hunt as hunt_agent
@@ -2041,7 +2119,7 @@ def cmd_fix(args):
                 return cmd_hunt(args)
             elif len(findings) > 1:
                 print("================================================================================")
-                print("                         TRUHOWL HUNT: MULTIPLE FINDINGS                         ")
+                print("                       TRUHOWL MIGRATE: MULTIPLE FINDINGS                       ")
                 print("================================================================================\n")
                 print(f"Multiple actionable findings detected in {repo_dir}:\n")
                 for f in findings:
@@ -2049,7 +2127,7 @@ def cmd_fix(args):
                     print(f"      {f.summary[:100]}\n")
                 print("Run:")
                 for f in findings:
-                    print(f"  truhowl hunt {f.finding_id}")
+                    print(f"  truhowl migrate {f.finding_id}")
                 print("\n================================================================================")
                 return
         except Exception:
@@ -2104,7 +2182,7 @@ def cmd_hunt(args):
         repo_dir = _resolve_hunt_repo(".")
 
     print("================================================================================")
-    print("                         TRUHOWL HUNT: AUTONOMOUS REPAIR                         ")
+    print("                       TRUHOWL MIGRATE: AUTONOMOUS REPAIR                        ")
     print("================================================================================\n")
     print(f"Repository:              {repo_dir}")
     print(f"Finding:                 {finding_ref}\n")
@@ -2539,12 +2617,15 @@ def main():
         Repairs breaking upgrades and proves the migration works before opening a PR.
 
         Workflow:
+          truhowl status [path]            Show repos, dependencies, and maintenance state
+          truhowl ask "question"           Ask about impact, failures, or readiness (read-only)
           truhowl check [path]             Detect breaking SDK/API drift and show affected usage
-          truhowl hunt <finding|provider>  Plan, edit, build, test, repair, and prepare/open PR
+          truhowl migrate <finding|provider>  Plan, edit, build, test, repair, and prepare/open PR
           truhowl consult [path]           Analyze drift and file a GitHub issue (report-only)
 
         Configuration & Diagnostics:
-          truhowl auth                     Connect & configure AI provider credentials (OpenAI, Anthropic, Groq, etc.)
+          truhowl login                    Connect & configure AI provider credentials (OpenAI, Anthropic, Groq, etc.)
+          truhowl auth                     Same as login (all auth flags accepted)
           truhowl doctor                   Verify environment, credentials, test runner, and repository health
           truhowl status                   Show current workspace, repository context, and provider status
 
@@ -2554,6 +2635,8 @@ def main():
           truhowl undo                     Reverse the last applied change set
           truhowl providers                List supported providers and migration contract catalog
           truhowl app                      Manage GitHub App webhook server daemon
+
+        Renamed: hunt is a deprecated alias for migrate (truhowl hunt still works).
     """)
 
     parser = argparse.ArgumentParser(
@@ -2753,8 +2836,8 @@ def main():
 
     hunt_p = subparsers.add_parser(
         "hunt",
-        aliases=["work", "fix", "maintain", "update", "@hunt"],
-        help="Autonomous migration repair: plan, edit, build/test, repair, and prepare/open PR",
+        aliases=["work", "@hunt"],
+        help="Deprecated alias for migrate (still works)",
     )
     hunt_p.add_argument("root_dir", nargs="?", default=".", help="Finding id (from truhowl check) or codebase directory")
     hunt_p.add_argument("--provider", default="auto", help="Target API provider (e.g. stripe, openai, anthropic, or auto)")
@@ -2772,6 +2855,28 @@ def main():
     hunt_p.add_argument("--issue", default=None, help="GitHub issue number backing the finding")
     hunt_p.add_argument("--yes", action="store_true", help="Auto-approve PR creation after verified repair")
     hunt_p.add_argument("--max-iterations", type=int, default=3, help="Max AI-directed repair iterations (default: 3)")
+
+    migrate_p = subparsers.add_parser(
+        "migrate",
+        aliases=["fix", "maintain", "update"],
+        help="Autonomous migration repair: plan, edit, build/test, repair, and prepare/open PR",
+    )
+    migrate_p.add_argument("root_dir", nargs="?", default=".", help="Finding id (from truhowl check) or codebase directory")
+    migrate_p.add_argument("--provider", default="auto", help="Target API provider (e.g. stripe, openai, anthropic, or auto)")
+    migrate_p.add_argument("--from", dest="from_version", default=None, help="Current dependency version")
+    migrate_p.add_argument("--to", dest="to_version", default=None, help="Target dependency version")
+    migrate_p.add_argument("--detect", action="store_true", help="Detect installed API providers in repository")
+    migrate_p.add_argument("--create-pr", action="store_true", help="Open GitHub Pull Request via API")
+    migrate_p.add_argument("--show-pr", action="store_true", help="Display the Trust PR body")
+    migrate_p.add_argument("--repo", default=None, help="GitHub repository name (owner/repo) for PR creation")
+    migrate_p.add_argument("--json", action="store_true", help="Output machine-readable JSON")
+    migrate_p.add_argument("--model", default=None, help="BYOK LLM model name (e.g. claude-3-5-sonnet-20241022, gpt-4o)")
+    migrate_p.add_argument("--api-key", default=None, help="BYOK LLM API key (or set ANTHROPIC_API_KEY/OPENAI_API_KEY)")
+    migrate_p.add_argument("--base-url", default=None, help="Custom LLM base URL (e.g. for local Ollama/vLLM)")
+    migrate_p.add_argument("--finding", default=None, help="Migration finding id from truhowl check (e.g. stripe-a1b2c3)")
+    migrate_p.add_argument("--issue", default=None, help="GitHub issue number backing the finding")
+    migrate_p.add_argument("--yes", action="store_true", help="Auto-approve PR creation after verified repair")
+    migrate_p.add_argument("--max-iterations", type=int, default=3, help="Max AI-directed repair iterations (default: 3)")
 
     consult_p = subparsers.add_parser(
         "consult",
@@ -2825,6 +2930,18 @@ def main():
     auth_p.add_argument("--installation", default=None, help="Associate credentials with a GitHub App installation id")
     auth_p.add_argument("--repo", default=None, help="Associate credentials with a repository (owner/repo, with --installation)")
 
+    login_p = subparsers.add_parser("login", help="Connect AI provider credentials (same as auth)")
+    login_p.add_argument("--provider", choices=["anthropic", "openai", "groq", "openai_compatible", "ollama", "local"], default=None, help="AI provider name")
+    login_p.add_argument("--api-key", default=None, help="AI provider API key")
+    login_p.add_argument("--model", default=None, help="Model name (e.g. claude-3-5-sonnet-20241022, gpt-4o)")
+    login_p.add_argument("--base-url", default=None, help="Base URL for custom/local endpoints")
+    login_p.add_argument("--path", default=".", help="Repository root path to auto-index (default: .)")
+
+    ask_p = subparsers.add_parser("ask", help="Ask about impact, failures, or readiness (read-only)")
+    ask_p.add_argument("question", nargs="*", help="Question, e.g. \"what breaks if we upgrade stripe?\"")
+    ask_p.add_argument("--path", default=".", help="Repository root path (default: .)")
+    ask_p.add_argument("--json", action="store_true", help="Output machine-readable JSON")
+
     index_p = subparsers.add_parser("index", help="Index repository dependencies, callsites, and construct graph")
     index_p.add_argument("path", nargs="?", default=".", help="Repository root path (default: .)")
     index_p.add_argument("--write-graph", action="store_true", default=True, help="Persist .truhowl/graph.json")
@@ -2845,6 +2962,8 @@ def main():
     dispatch = {
         "init": cmd_init,
         "auth": cmd_auth,
+        "login": cmd_auth,
+        "ask": cmd_ask,
         "status": cmd_status,
         "doctor": cmd_doctor,
         "inspect": cmd_inspect,
@@ -2874,6 +2993,7 @@ def main():
         "update": cmd_fix,
         "work": cmd_fix,
         "hunt": cmd_fix,
+        "migrate": cmd_fix,
         "@hunt": cmd_fix,
         "consult": cmd_consult,
         "howl": cmd_consult,

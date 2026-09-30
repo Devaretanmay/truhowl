@@ -1,5 +1,5 @@
 {
-  "schema": "koyote.migration_failures.v1",
+  "schema": "truhowl.migration_failures.v1",
   "cases": 2,
   "verified": 0,
   "refused": 2,
@@ -36,5 +36,5 @@
   ],
   "label": "DEVELOPMENT CASES \u2014 not held-out benchmark evidence",
   "session": "2026-09-30T14:45:31",
-  "note": "These repositories were observed by Koyote before this pass and Koyote was modified in response to them, so they cannot count as held-out evidence."
+  "note": "These repositories were observed by Truhowl before this pass and Truhowl was modified in response to them, so they cannot count as held-out evidence."
 }

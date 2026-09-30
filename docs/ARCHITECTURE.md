@@ -42,7 +42,7 @@ Zero files touched                                Evidence (BLAKE3) & Trust PR
 
 Truhowl cleanly separates **Consult** and **Work** as its primary product abstractions:
 - **Consult (`@howl explain` / `truhowl consult`)**: Finds and explains maintenance problems with deep AI reasoning. Explains what changed upstream, what is actually affected across internal callsites, why, what should change, and what must NOT change. Files an advisory **GitHub Issue** (or responds on an existing PR thread). Never touches files, never commits, and never opens PRs.
-- **Work (`truhowl hunt <id>` / `truhowl work`)**: The autonomous maintenance worker. Starts from a finding ID, rebuilds live context, reasons with AI, authors the patch with AI, verifies in an isolated sandbox worktree at the exact SHA with the project's real test command, and opens a **GitHub PR** only for sealed, green, scope-clean repairs. Anything else fails closed with no PR.
+- **Migrate (`truhowl migrate <id>`)**: The autonomous maintenance worker. Starts from a finding ID, rebuilds live context, reasons with AI, authors the patch with AI, verifies in an isolated sandbox worktree at the exact SHA with the project's real test command, and opens a **GitHub PR** only for sealed, green, scope-clean repairs. Anything else fails closed with no PR.
 
 ## 1c. Hunt internals (ports + sealed provenance)
 

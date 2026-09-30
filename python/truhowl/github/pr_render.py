@@ -185,7 +185,7 @@ def render_consult_issue(items: list[dict]) -> str:
             lines.append(str(item["assessment_body"]).strip())
             lines.append("")
         if item.get("auto_repairable", True):
-            lines.append("**Action:** Work mode can repair this automatically (`truhowl work` or `@hunt repair`).")
+            lines.append("**Action:** Truhowl can repair this automatically (`truhowl migrate --provider {}` ).".format(item.get("provider_name", "").lower() or "stripe"))
         else:
             lines.append("**Action:** Manual architectural review recommended.")
         lines.append(f"Confidence: {item.get('confidence', 'high')}")

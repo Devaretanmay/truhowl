@@ -98,6 +98,57 @@ def test_cli_hunt_detect():
     assert "TRUHOWL AUTONOMOUS MAINTENANCE LOOP" in result.stdout
 
 
+def test_cli_migrate_help():
+    result = _run_truhowl_cli(["migrate", "--help"])
+    assert result.returncode == 0
+    assert "usage: truhowl migrate" in result.stdout
+    assert "--provider" in result.stdout
+    assert "--finding" in result.stdout
+
+
+def test_cli_migrate_detect():
+    result = _run_truhowl_cli(["migrate", "trials/fixtures/taxonomy_stripe/", "--detect"])
+    assert result.returncode == 0
+    assert "TRUHOWL AUTONOMOUS MAINTENANCE LOOP" in result.stdout
+
+
+def test_cli_login_help():
+    result = _run_truhowl_cli(["login", "--help"])
+    assert result.returncode == 0
+    assert "usage: truhowl login" in result.stdout
+    assert "--provider" in result.stdout
+    assert "--api-key" in result.stdout
+
+
+def test_cli_ask_help():
+    result = _run_truhowl_cli(["ask", "--help"])
+    assert result.returncode == 0
+    assert "usage: truhowl ask" in result.stdout
+
+
+def test_cli_ask_impact():
+    result = _run_truhowl_cli(["ask", "--path", "trials/fixtures/taxonomy_stripe/",
+                               "what breaks if we upgrade stripe?"])
+    assert result.returncode == 0
+    assert "stripe" in result.stdout.lower()
+    assert "callsite" in result.stdout.lower()
+
+
+def test_cli_ask_no_history():
+    result = _run_truhowl_cli(["ask", "--path", "trials/fixtures/taxonomy_stripe/",
+                               "why did the migration fail?"])
+    assert result.returncode == 0
+    assert "truhowl migrate" in result.stdout
+
+
+def test_cli_top_level_help_phase2():
+    result = _run_truhowl_cli(["--help"])
+    assert result.returncode == 0
+    assert "truhowl migrate" in result.stdout
+    assert "truhowl ask" in result.stdout
+    assert "truhowl login" in result.stdout
+
+
 
 
 def test_audit_drops_string_only_drift(tmp_path):
