@@ -2,12 +2,12 @@ import os
 import shutil
 import subprocess
 import sys
-from koyote.credentials import save_credentials, load_credentials, clear_credentials, has_valid_credentials, verify_credentials
+from truhowl.credentials import save_credentials, load_credentials, clear_credentials, has_valid_credentials, verify_credentials
 
 
 def test_credentials_module_lifecycle(tmp_path):
     creds_file = str(tmp_path / "creds.json")
-    os.environ["KOYOTE_CREDENTIALS_FILE"] = creds_file
+    os.environ["TRUHOWL_CREDENTIALS_FILE"] = creds_file
 
     try:
         assert not has_valid_credentials()
@@ -30,7 +30,7 @@ def test_credentials_module_lifecycle(tmp_path):
         assert not os.path.exists(creds_file)
         assert not has_valid_credentials()
     finally:
-        os.environ.pop("KOYOTE_CREDENTIALS_FILE", None)
+        os.environ.pop("TRUHOWL_CREDENTIALS_FILE", None)
 
 
 def test_verify_credentials_formats():
@@ -60,22 +60,22 @@ def test_cli_check_gated_without_auth(tmp_path):
     creds_file = str(tmp_path / "creds_none.json")
     env = dict(os.environ)
     env["PYTHONPATH"] = "python"
-    env["KOYOTE_CREDENTIALS_FILE"] = creds_file
-    for k in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "KOYOTE_LLM_KEY"):
+    env["TRUHOWL_CREDENTIALS_FILE"] = creds_file
+    for k in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "TRUHOWL_LLM_KEY"):
         env.pop(k, None)
 
     res = subprocess.run(
-        [sys.executable, "-m", "koyote.cli.main", "check", "trials/fixtures/taxonomy_stripe/"],
+        [sys.executable, "-m", "truhowl.cli.main", "check", "trials/fixtures/taxonomy_stripe/"],
         capture_output=True,
         text=True,
         env=env,
     )
     assert res.returncode == 0
-    assert "KOYOTE: EXTERNAL-CHANGE DEPENDENCY AUDIT" in res.stdout
+    assert "TRUHOWL: EXTERNAL-CHANGE DEPENDENCY AUDIT" in res.stdout
 
     # fix without creds should quarantine when AI is needed (no rewrite case via unknown provider)
     res2 = subprocess.run(
-        [sys.executable, "-m", "koyote.cli.main", "fix", _copy_fixture(tmp_path), "--provider", "twilio"],
+        [sys.executable, "-m", "truhowl.cli.main", "fix", _copy_fixture(tmp_path), "--provider", "twilio"],
         capture_output=True,
         text=True,
         env=env,
@@ -89,13 +89,13 @@ def test_cli_auth_and_auto_index(tmp_path):
     creds_file = str(tmp_path / "creds_auth.json")
     env = dict(os.environ)
     env["PYTHONPATH"] = "python"
-    env["KOYOTE_CREDENTIALS_FILE"] = creds_file
-    for k in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "KOYOTE_LLM_KEY"):
+    env["TRUHOWL_CREDENTIALS_FILE"] = creds_file
+    for k in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "TRUHOWL_LLM_KEY"):
         env.pop(k, None)
 
     res_auth = subprocess.run(
         [
-            sys.executable, "-m", "koyote.cli.main", "auth",
+            sys.executable, "-m", "truhowl.cli.main", "auth",
             "--provider", "anthropic",
             "--api-key", "sk-ant-validkey123456789012345",
             "--path", fixture,
@@ -106,10 +106,10 @@ def test_cli_auth_and_auto_index(tmp_path):
     )
     assert res_auth.returncode == 0
     assert "Credentials verified successfully for anthropic" in res_auth.stdout
-    assert "Initializing Koyote Knowledge Graph" in res_auth.stdout
+    assert "Initializing Truhowl Knowledge Graph" in res_auth.stdout
 
     res_status = subprocess.run(
-        [sys.executable, "-m", "koyote.cli.main", "auth", "--status"],
+        [sys.executable, "-m", "truhowl.cli.main", "auth", "--status"],
         capture_output=True,
         text=True,
         env=env,
@@ -119,19 +119,19 @@ def test_cli_auth_and_auto_index(tmp_path):
     assert "anthropic" in res_status.stdout
 
     res_check = subprocess.run(
-        [sys.executable, "-m", "koyote.cli.main", "check", "trials/fixtures/taxonomy_stripe/"],
+        [sys.executable, "-m", "truhowl.cli.main", "check", "trials/fixtures/taxonomy_stripe/"],
         capture_output=True,
         text=True,
         env=env,
     )
     assert res_check.returncode == 0
-    assert "KOYOTE: EXTERNAL-CHANGE DEPENDENCY AUDIT" in res_check.stdout
+    assert "TRUHOWL: EXTERNAL-CHANGE DEPENDENCY AUDIT" in res_check.stdout
 
     res_index = subprocess.run(
-        [sys.executable, "-m", "koyote.cli.main", "index", fixture],
+        [sys.executable, "-m", "truhowl.cli.main", "index", fixture],
         capture_output=True,
         text=True,
         env=env,
     )
     assert res_index.returncode == 0
-    assert "KOYOTE: EXTERNAL-CHANGE DEPENDENCY AUDIT" in res_index.stdout
+    assert "TRUHOWL: EXTERNAL-CHANGE DEPENDENCY AUDIT" in res_index.stdout

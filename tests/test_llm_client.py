@@ -2,7 +2,7 @@ import os
 import unittest
 from unittest.mock import MagicMock, patch
 
-from koyote.llm import LLMClient, LLMConfig, resolve_llm_config
+from truhowl.llm import LLMClient, LLMConfig, resolve_llm_config
 
 
 class TestLLMClient(unittest.TestCase):
@@ -55,7 +55,7 @@ class TestLLMClient(unittest.TestCase):
             self.assertEqual(cfg.api_key, "gsk_fromenv123")
             self.assertEqual(cfg.base_url, "https://api.groq.com/openai/v1")
 
-    @patch("koyote.llm.load_credentials", return_value=None)
+    @patch("truhowl.llm.load_credentials", return_value=None)
     def test_resolve_none_when_empty(self, _mock_creds):
         with patch.dict(os.environ, {}, clear=True):
             cfg = resolve_llm_config()

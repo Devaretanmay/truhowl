@@ -1,6 +1,6 @@
 from unittest.mock import MagicMock
-from koyote.github.pr_bot import handle_issue_comment_event
-from koyote.repo_identity import get_repository, STATE_ACTIVE, register_repository
+from truhowl.github.pr_bot import handle_issue_comment_event
+from truhowl.repo_identity import get_repository, STATE_ACTIVE, register_repository
 
 def _comment_payload(text, repo='acme/backend', sender_type='User', is_pr=True):
     issue = {'number': 7}

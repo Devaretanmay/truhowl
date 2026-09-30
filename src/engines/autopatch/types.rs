@@ -152,8 +152,6 @@ pub struct MaintenancePlan {
     pub verification_specs: Vec<VerificationSpec>,
 }
 
-
-
 /// Verification outcome of an automated patch or test trial.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum VerificationOutcome {

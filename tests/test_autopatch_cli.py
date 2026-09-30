@@ -3,7 +3,7 @@ import os
 import sys
 import tempfile
 
-from koyote.cli.main import main
+from truhowl.cli.main import main
 
 OLD_SPEC = {
     "openapi": "3.0.0",
@@ -69,7 +69,7 @@ def test_cli_diff_schema(capsys):
         with open(new_file, "w") as f:
             json.dump(NEW_SPEC, f)
 
-        sys.argv = ["koyote", "diff-schema", old_file, new_file]
+        sys.argv = ["truhowl", "diff-schema", old_file, new_file]
         main()
         captured = capsys.readouterr()
         assert "Schema Diff: Payments API" in captured.out
@@ -85,7 +85,7 @@ def test_cli_diff_schema_json(capsys):
         with open(new_file, "w") as f:
             json.dump(NEW_SPEC, f)
 
-        sys.argv = ["koyote", "diff-schema", old_file, new_file, "--json"]
+        sys.argv = ["truhowl", "diff-schema", old_file, new_file, "--json"]
         main()
         captured = capsys.readouterr()
         data = json.loads(captured.out)
@@ -98,7 +98,7 @@ def test_cli_scan_api(capsys):
         with open(src_file, "w") as f:
             f.write("import Stripe from 'stripe';\nconst c = stripe.charges.create({ amount: 10 });\n")
 
-        sys.argv = ["koyote", "scan-api", "--root-dir", tmpdir, "--sdk", "stripe", "--method", "charges.create"]
+        sys.argv = ["truhowl", "scan-api", "--root-dir", tmpdir, "--sdk", "stripe", "--method", "charges.create"]
         main()
         captured = capsys.readouterr()
         assert "API Callsite Scan:" in captured.out
@@ -120,7 +120,7 @@ def test_cli_autopatch_generates_files(capsys):
 
         out_dir = os.path.join(tmpdir, "autopatch_out")
         sys.argv = [
-            "koyote", "autopatch",
+            "truhowl", "autopatch",
             "--old", old_file,
             "--new", new_file,
             "--root-dir", tmpdir,
@@ -150,7 +150,7 @@ def test_cli_workflow_order(capsys):
         with open(wf_file, "w") as f:
             json.dump(wf, f)
 
-        sys.argv = ["koyote", "workflow-order", wf_file]
+        sys.argv = ["truhowl", "workflow-order", wf_file]
         main()
         captured = capsys.readouterr()
         assert "Execution Order" in captured.out
@@ -164,7 +164,7 @@ def test_cli_inventory(capsys):
         with open(src_file, "w") as f:
             f.write("import Stripe from 'stripe';\nconst c = stripe.charges.create({ amount: 10 });\n")
 
-        sys.argv = ["koyote", "inventory", "--root-dir", tmpdir]
+        sys.argv = ["truhowl", "inventory", "--root-dir", tmpdir]
         main()
         captured = capsys.readouterr()
         assert "External Dependency Inventory" in captured.out

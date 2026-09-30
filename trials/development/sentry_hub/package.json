@@ -1,0 +1,6 @@
+{
+  "name": "sentry-hub-fixture",
+  "dependencies": {
+    "@sentry/node": "^7.114.0"
+  }
+}

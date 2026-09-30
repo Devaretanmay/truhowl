@@ -1,0 +1,6 @@
+{
+  "name": "renovate-octokit-fixture",
+  "dependencies": {
+    "@octokit/rest": "^16.43.0"
+  }
+}

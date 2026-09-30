@@ -1,6 +1,6 @@
+use super::types::UncertaintyReason;
 use crate::engines::ast::CallsiteKind;
 use crate::engines::schema::ParsedSpec;
-use super::types::UncertaintyReason;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -485,7 +485,6 @@ mod tests {
     use super::*;
     use crate::engines::ast::CallsiteKind;
 
-
     #[test]
     fn resolves_charges_create_to_correct_endpoint() {
         let r = resolve_stripe_method("charges.create").unwrap();
@@ -527,7 +526,6 @@ mod tests {
         let r = resolve_stripe_method("this.stripe.paymentIntents.create").unwrap();
         assert_eq!(r.path, "/v1/payment_intents");
     }
-
 
     #[test]
     fn method_call_to_charges_is_confirmed_for_charges_change() {

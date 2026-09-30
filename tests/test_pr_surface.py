@@ -1,17 +1,17 @@
-# Copyright 2026 Koyote Authors
+# Copyright 2026 Truhowl Authors
 # SPDX-License-Identifier: Apache-2.0
 """PR surface parity: summary, badges, diagrams, footer, assembly order."""
 
 from unittest.mock import MagicMock
 
-from koyote.config import PipelinePolicy
-from koyote.github.pr_render import (
+from truhowl.config import PipelinePolicy
+from truhowl.github.pr_render import (
     render_flow_diagram,
     render_pr_footer,
     render_pr_summary,
     severity_of,
 )
-from koyote.pipeline import AnalysisResult, DriftFinding, TriggerContext, surface_result
+from truhowl.pipeline import AnalysisResult, DriftFinding, TriggerContext, surface_result
 
 
 def _ctx(**kwargs):
@@ -73,12 +73,12 @@ def test_flow_diagram_fenced_and_named():
 def test_footer_names_commit_and_rerun():
     body = render_pr_footer(_ctx())
     assert "abc123" in body
-    assert "@koyote" in body
+    assert "@truhowl" in body
 
 
 def test_surface_assembly_order():
     result = surface_result(_ctx(), _analysis(), PipelinePolicy(), MagicMock())
     body = result.comment_body
-    assert body.index("## Koyote review") < body.index("KOYOTE FOUND A MAINTENANCE ISSUE")
-    assert body.index("```mermaid") > body.index("KOYOTE FOUND A MAINTENANCE ISSUE")
-    assert body.rstrip().endswith("Comment `@koyote` to re-run this review.")
+    assert body.index("## Truhowl review") < body.index("TRUHOWL FOUND A MAINTENANCE ISSUE")
+    assert body.index("```mermaid") > body.index("TRUHOWL FOUND A MAINTENANCE ISSUE")
+    assert body.rstrip().endswith("Comment `@truhowl` to re-run this review.")

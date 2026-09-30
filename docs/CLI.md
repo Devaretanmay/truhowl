@@ -1,8 +1,8 @@
-# Koyote CLI Reference & User Guide
+# Truhowl CLI Reference & User Guide
 
-Koyote is an autonomous SDK/API migration worker that repairs breaking upgrades and proves the migration works before opening a PR.
+Truhowl is an autonomous SDK/API migration worker that repairs breaking upgrades and proves the migration works before opening a PR.
 
-> **"Koyote understands the changes the outside world makes to software — and repairs them."**
+> **"Truhowl understands the changes the outside world makes to software — and repairs them."**
 
 ---
 
@@ -10,28 +10,28 @@ Koyote is an autonomous SDK/API migration worker that repairs breaking upgrades 
 
 ```text
 Workflow:
-  koyote check [path]             Detect breaking SDK/API drift and show affected usage
-  koyote hunt <finding|provider>  Plan, edit, build, test, repair, and prepare/open PR
-  koyote consult [path]           Analyze drift and file a GitHub issue (report-only)
+  truhowl check [path]             Detect breaking SDK/API drift and show affected usage
+  truhowl hunt <finding|provider>  Plan, edit, build, test, repair, and prepare/open PR
+  truhowl consult [path]           Analyze drift and file a GitHub issue (report-only)
 
 Configuration & Diagnostics:
-  koyote auth                     Connect & configure AI provider credentials (OpenAI, Anthropic, Groq, etc.)
-  koyote doctor                   Verify environment, credentials, test runner, and repository health
-  koyote status                   Show current workspace, repository context, and provider status
+  truhowl auth                     Connect & configure AI provider credentials (OpenAI, Anthropic, Groq, etc.)
+  truhowl doctor                   Verify environment, credentials, test runner, and repository health
+  truhowl status                   Show current workspace, repository context, and provider status
 
 Advanced / Plumbing:
-  koyote graph [path]             Inspect external dependency graph and callsites
-  koyote diff                     Inspect unapplied/recorded agent execution changes
-  koyote undo                     Reverse the last applied change set
-  koyote providers                List supported providers and migration contract catalog
-  koyote app                      Manage GitHub App webhook server daemon
+  truhowl graph [path]             Inspect external dependency graph and callsites
+  truhowl diff                     Inspect unapplied/recorded agent execution changes
+  truhowl undo                     Reverse the last applied change set
+  truhowl providers                List supported providers and migration contract catalog
+  truhowl app                      Manage GitHub App webhook server daemon
 ```
 
 ---
 
 ## 1. Core Migration Workflow
 
-### `koyote check [path]` (aliases: `scan`, `audit`)
+### `truhowl check [path]` (aliases: `scan`, `audit`)
 Scans package manifests, lockfiles, and code callsites to detect breaking SDK/API drift and display affected repository locations.
 
 - **Zero Tokens**: Runs purely through static manifest inspection and native AST callsite mapping.
@@ -39,27 +39,27 @@ Scans package manifests, lockfiles, and code callsites to detect breaking SDK/AP
 - **Finding IDs**: Each identified breaking change or deprecation receives a deterministic finding ID (e.g., `stripe-df9562`, `openai-3a9c79`).
 
 ```bash
-koyote check .
-koyote check . --format=github-issue    # Markdown formatted for GitHub Issues
-koyote check . --format=json            # Machine-readable JSON risk register
-koyote check . --write-graph            # Persists AST graph to .koyote/graph.json
+truhowl check .
+truhowl check . --format=github-issue    # Markdown formatted for GitHub Issues
+truhowl check . --format=json            # Machine-readable JSON risk register
+truhowl check . --write-graph            # Persists AST graph to .truhowl/graph.json
 ```
 
 ---
 
-### `koyote hunt <finding-id>` (aliases: `fix`, `maintain`, `update`, `work`, `@hunt`)
+### `truhowl hunt <finding-id>` (aliases: `fix`, `maintain`, `update`, `work`, `@hunt`)
 Autonomous migration worker. Resolves the finding, gathers migration guidance and affected callsites, formulates an AI repair plan, edits code, runs compiler/test checks in an isolated sandbox, repairs test failures, verifies scope boundaries, and prepares or opens a PR.
 
 ```bash
-# Repair from a finding ID discovered by koyote check
-koyote hunt stripe-df9562
+# Repair from a finding ID discovered by truhowl check
+truhowl hunt stripe-df9562
 
 # Create a pull request once tests pass
-koyote hunt stripe-df9562 --create-pr --repo owner/repo
+truhowl hunt stripe-df9562 --create-pr --repo owner/repo
 
 # Provider-driven targeting (alternative invocation)
-koyote hunt --provider stripe
-koyote hunt --provider openai --from v3.28.0 --to v4.0.0
+truhowl hunt --provider stripe
+truhowl hunt --provider openai --from v3.28.0 --to v4.0.0
 ```
 
 #### The Hunt Guarantees
@@ -71,33 +71,33 @@ koyote hunt --provider openai --from v3.28.0 --to v4.0.0
 
 ---
 
-### `koyote consult [path]` (aliases: `howl`, `@howl`)
+### `truhowl consult [path]` (aliases: `howl`, `@howl`)
 Advisory mode. Reasons through breaking changes, diagnoses architectural impact, and generates a structured GitHub Issue without modifying repository code.
 
 ```bash
-koyote consult .
-koyote consult . --repo owner/repo
+truhowl consult .
+truhowl consult . --repo owner/repo
 ```
 
 ---
 
 ## 2. Configuration & Diagnostics
 
-### `koyote auth`
+### `truhowl auth`
 Configures customer BYOK (Bring Your Own Key) AI provider credentials.
 
 ```bash
-koyote auth                             # Interactive setup
-koyote auth --provider anthropic --api-key sk-ant-...
-koyote auth --status                    # Display active provider and key mask
-koyote auth --clear                     # Remove stored credentials
+truhowl auth                             # Interactive setup
+truhowl auth --provider anthropic --api-key sk-ant-...
+truhowl auth --status                    # Display active provider and key mask
+truhowl auth --clear                     # Remove stored credentials
 ```
 
-Stored securely in `~/.koyote/credentials.json` with `0600` permissions.
+Stored securely in `~/.truhowl/credentials.json` with `0600` permissions.
 
 ---
 
-### `koyote doctor`
+### `truhowl doctor`
 Performs an end-to-end system health check verifying:
 - Host platform and kernel sandboxing capabilities.
 - AI provider configuration and connectivity.
@@ -105,81 +105,81 @@ Performs an end-to-end system health check verifying:
 - Knowledge base and historical repair ledger state.
 
 ```bash
-koyote doctor
+truhowl doctor
 ```
 
 ---
 
-### `koyote status`
+### `truhowl status`
 Displays the active workspace context, repository registration, detected test commands, and configured provider.
 
 ```bash
-koyote status
+truhowl status
 ```
 
 ---
 
 ## 3. Sandboxing & Supported Platforms
 
-Koyote executes test suites and build scripts under strict kernel sandboxing to prevent credential exfiltration or side effects:
+Truhowl executes test suites and build scripts under strict kernel sandboxing to prevent credential exfiltration or side effects:
 
 - **macOS**: Kernel isolation enforced via Seatbelt (`sandbox-exec` profiles) restricting filesystem and network access.
 - **Linux**: Kernel isolation enforced via Landlock LSM system calls restricting directory hierarchies.
-- **Fail-Closed Fallback**: If running on an unsupported platform or in an unverified sandbox environment, Koyote enforces strict execution boundaries or fails closed rather than running unconfined.
+- **Fail-Closed Fallback**: If running on an unsupported platform or in an unverified sandbox environment, Truhowl enforces strict execution boundaries or fails closed rather than running unconfined.
 - **2ms Instant Undo**: Pre-execution BLAKE3 hash snapshots enable physical rollback of all modified files within 2 milliseconds.
 
 ---
 
 ## 4. Advanced & Plumbing Commands
 
-### `koyote graph [path]`
+### `truhowl graph [path]`
 Inspects the repository's external dependency graph (providers, contracts, manifest dependencies, wrapper clients, and AST callsites):
 
 ```bash
-koyote graph .
-koyote graph . --json
+truhowl graph .
+truhowl graph . --json
 ```
 
 ---
 
-### `koyote diff`
+### `truhowl diff`
 Inspects unapplied or recorded execution change sets and RFC-5322 metadata trailers.
 
 ```bash
-koyote diff
-koyote diff --trailers
+truhowl diff
+truhowl diff --trailers
 ```
 
 ---
 
-### `koyote undo`
+### `truhowl undo`
 Instantly rolls back workspace changes to the pre-execution BLAKE3 hash snapshot.
 
 ```bash
-koyote undo
+truhowl undo
 ```
 
 ---
 
-### `koyote providers`
+### `truhowl providers`
 Lists the built-in provider contract registry and available breaking-change migration specifications.
 
 ```bash
-koyote providers
-koyote providers --json
+truhowl providers
+truhowl providers --json
 ```
 
 ---
 
-### `koyote app [serve|status]`
+### `truhowl app [serve|status]`
 Runs the GitHub App continuous webhook listener daemon for automated PR drift detection and verification.
 
 ```bash
-koyote app serve --port 8080 --secret $KOYOTE_WEBHOOK_SECRET
+truhowl app serve --port 8080 --secret $TRUHOWL_WEBHOOK_SECRET
 ```
 
 ---
 
 ## 5. Deprecated Commands
 
-> **Note:** Direct coding-agent wrappers (`koyote claude`, `koyote opencode`, `koyote codex`, `koyote cursor`, `koyote aider`) and generic workflow pipelines (`koyote step`, `koyote run`) are legacy utilities retained for backward compatibility. They are not part of the primary migration product workflow and emit a deprecation notice when invoked.
+> **Note:** Direct coding-agent wrappers (`truhowl claude`, `truhowl opencode`, `truhowl codex`, `truhowl cursor`, `truhowl aider`) and generic workflow pipelines (`truhowl step`, `truhowl run`) are legacy utilities retained for backward compatibility. They are not part of the primary migration product workflow and emit a deprecation notice when invoked.

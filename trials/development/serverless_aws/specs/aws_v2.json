@@ -1,0 +1,1 @@
+{"openapi": "3.0.0", "info": {"title": "AWS", "version": "2"}, "paths": {"/s3/putObject": {"put": {"operationId": "putObject", "parameters": [{"name": ".promise()", "in": "query", "schema": {"type": "string"}}]}}}}

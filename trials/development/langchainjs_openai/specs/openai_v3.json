@@ -1,0 +1,22 @@
+{
+  "openapi": "3.0.0",
+  "info": { "title": "OpenAI API", "version": "v3" },
+  "paths": {
+    "/v1/chat/completions": {
+      "post": {
+        "operationId": "createChatCompletion",
+        "parameters": [
+          { "name": "chat.completions.create", "in": "query", "schema": { "type": "string" } }
+        ]
+      }
+    },
+    "/v1/embeddings": {
+      "post": {
+        "operationId": "createEmbedding",
+        "parameters": [
+          { "name": "model", "in": "query", "schema": { "type": "string" } }
+        ]
+      }
+    }
+  }
+}

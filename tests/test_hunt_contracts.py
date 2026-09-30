@@ -1,4 +1,4 @@
-# Copyright 2026 Koyote Authors
+# Copyright 2026 Truhowl Authors
 # SPDX-License-Identifier: Apache-2.0
 """Contract tests for Hunt's interface separation.
 
@@ -30,9 +30,9 @@ import subprocess
 
 import pytest
 
-from koyote import hunt as hunt_agent
-from koyote import hunt_ports as hp
-from koyote.hunt import (
+from truhowl import hunt as hunt_agent
+from truhowl import hunt_ports as hp
+from truhowl.hunt import (
     SandboxResult,
     _promote_sandbox,
     create_sandbox,
@@ -45,13 +45,13 @@ from koyote.hunt import (
     verify_sandbox_binding,
     write_audit,
 )
-from koyote.patch_writer import PatchResult
+from truhowl.patch_writer import PatchResult
 
 
 def _init_git_repo(path: str) -> None:
     subprocess.run(["git", "init", "-b", "main"], cwd=path, check=True, capture_output=True)
-    subprocess.run(["git", "config", "user.name", "Koyote Test"], cwd=path, check=True, capture_output=True)
-    subprocess.run(["git", "config", "user.email", "test@koyote.dev"], cwd=path, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.name", "Truhowl Test"], cwd=path, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.email", "test@truhowl.dev"], cwd=path, check=True, capture_output=True)
     subprocess.run(["git", "add", "-A"], cwd=path, check=True, capture_output=True)
     subprocess.run(["git", "commit", "-m", "initial"], cwd=path, check=True, capture_output=True)
 
@@ -401,7 +401,7 @@ def test_hunt_ports_imports_no_hunt_internals():
         else:
             continue
         for name in names:
-            assert "koyote.hunt" not in name and name != "koyote", name
+            assert "truhowl.hunt" not in name and name != "truhowl", name
     # The real check: hunt_ports module object has no reference to hunt internals.
     assert not hasattr(hp, "gather_context")
     assert not hasattr(hp, "run_hunt")
@@ -436,10 +436,12 @@ class _FakeAuthor:
     def __init__(self, events):
         self.events = events
         self.calls = 0
+        self.authored_paths: list[str] = []
 
     def author(self, *, ctx, plan, sandbox_dir, candidate_files, reasoning_attempt):
         self.calls += 1
         self.events.append("author")
+        self.authored_paths = list(candidate_files)
         assert isinstance(plan, hp.RepairPlan)
         assert plan.provider == "stripe"
         assert "tests/test_sanity.py" in plan.must_not_change
@@ -610,16 +612,20 @@ def test_phantom_reasoning_paths_cannot_invent_files(tmp_path, monkeypatch):
     findings = list_findings(repo)
     report = run_hunt(repo, findings[0].finding_id, ports=ports, max_iterations=1)
 
-    # The phantom path is not a file, so no candidates exist and the
-    # author is never invoked. The invented file must never be created.
-    assert author.calls == 0
-    assert report.success is False
+    # The phantom path is never resolved to a real file, so it is never handed
+    # to the author and never created. Candidate selection is bounded by the
+    # migration plan (here: the manifest that declares the dependency), not by
+    # the model's invented paths — so reasoning can neither invent files nor
+    # shrink the migration to nothing, and the invented path still yields no
+    # repair.
     assert not os.path.exists(os.path.join(repo, "does", "not", "exist.py"))
+    assert all("does/not/exist" not in p for p in author.authored_paths)
+    assert report.success is False
 
 
 def test_failed_repairs_land_on_avoid_list_not_memory(tmp_path, monkeypatch):
     """record_failure appends failed_patterns; trusted patterns stay empty."""
-    from koyote.knowledge import lookup
+    from truhowl.knowledge import lookup
 
     repo = _make_repo(tmp_path)
 
@@ -657,7 +663,7 @@ def test_audit_tampering_grants_no_authority(tmp_path, monkeypatch):
 
 def test_interpretation_caps_solved_by_real_exit_code():
     """A model claiming solved:true over red evidence is not solved."""
-    from koyote.llm import LLMResponse
+    from truhowl.llm import LLMResponse
 
     class SolvedLiar:
         def complete(self, messages=None, system_prompt=None):
@@ -667,7 +673,7 @@ def test_interpretation_caps_solved_by_real_exit_code():
                                       '"rationale": "trust me"}',
                                model="liar")
 
-    from koyote.hunt import ai_interpret
+    from truhowl.hunt import ai_interpret
 
     reasoning = hunt_agent.HuntReasoning(smallest_change="x")
     red = hunt_agent.VerificationEvidence(command="pytest -q", exit_code=1,
@@ -686,8 +692,8 @@ def test_sandbox_port_roundtrip(tmp_path):
     finally:
         provider.destroy(repo, box)
     assert not os.path.exists(box.sandbox_dir)
-    assert create_sandbox.__module__ == "koyote.hunt"
-    assert destroy_sandbox.__module__ == "koyote.hunt"
+    assert create_sandbox.__module__ == "truhowl.hunt"
+    assert destroy_sandbox.__module__ == "truhowl.hunt"
 
 
 def test_sandbox_binding_refuses_moved_repo(tmp_path):

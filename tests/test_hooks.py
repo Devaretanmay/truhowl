@@ -1,4 +1,4 @@
-"""Tests for the execution hooks (koyote.hooks).
+"""Tests for the execution hooks (truhowl.hooks).
 
 All hooks are exercised with ``sandbox=False`` because the kernel sandbox
 (Landlock / Seatbelt) is irreversible per process: applying it inside pytest
@@ -12,7 +12,7 @@ import shutil
 import tempfile
 import unittest
 
-from koyote.hooks.base import (
+from truhowl.hooks.base import (
     DEFAULT_PERMISSIONS,
     VALID_PERMISSIONS,
     ExecutionResult,
@@ -25,7 +25,7 @@ from koyote.hooks.base import (
 
 class TempCase(unittest.TestCase):
     def setUp(self):
-        self.base = tempfile.mkdtemp(prefix="koyote_hooks_test_")
+        self.base = tempfile.mkdtemp(prefix="truhowl_hooks_test_")
         self.workdir = os.path.join(self.base, "run")
         os.makedirs(self.workdir, exist_ok=True)
 

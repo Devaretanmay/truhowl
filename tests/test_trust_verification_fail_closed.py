@@ -1,4 +1,4 @@
-# Copyright 2026 Koyote Authors
+# Copyright 2026 Truhowl Authors
 # SPDX-License-Identifier: Apache-2.0
 """Regression tests verifying fail-closed trust and verification invariants."""
 
@@ -6,11 +6,11 @@ import os
 import unittest
 from unittest.mock import MagicMock, patch
 
-from koyote.engine.execution import Execution, ExecutionKind
-from koyote.pipeline import AnalysisResult, PipelinePolicy, TriggerContext, verify_fixes
-from koyote.sandbox.box import Box
-from koyote.sandbox.proxy import CredentialProxy
-from koyote.test_runner import run_sandboxed_command
+from truhowl.engine.execution import Execution, ExecutionKind
+from truhowl.pipeline import AnalysisResult, PipelinePolicy, TriggerContext, verify_fixes
+from truhowl.sandbox.box import Box
+from truhowl.sandbox.proxy import CredentialProxy
+from truhowl.test_runner import run_sandboxed_command
 
 
 class TestFailClosedVerification(unittest.TestCase):
@@ -31,7 +31,7 @@ class TestFailClosedVerification(unittest.TestCase):
         )
         policy = PipelinePolicy()
 
-        with patch("koyote.pipeline._detect_test_command", return_value=""):
+        with patch("truhowl.pipeline._detect_test_command", return_value=""):
             result = verify_fixes(ctx, analysis, policy)
 
         self.assertFalse(result.verified, "Missing test command must fail closed (verified=False)")
@@ -57,8 +57,8 @@ class TestFailClosedVerification(unittest.TestCase):
         mock_proc = MagicMock(returncode=1)
         policy = PipelinePolicy()
 
-        with patch("koyote.pipeline._detect_test_command", return_value="npm test"), \
-             patch("koyote.pipeline._run_tests", return_value=mock_proc):
+        with patch("truhowl.pipeline._detect_test_command", return_value="npm test"), \
+             patch("truhowl.pipeline._run_tests", return_value=mock_proc):
             result = verify_fixes(ctx, analysis, policy)
 
         self.assertFalse(result.verified)
@@ -82,8 +82,8 @@ class TestFailClosedVerification(unittest.TestCase):
         mock_proc = MagicMock(returncode=0)
         policy = PipelinePolicy()
 
-        with patch("koyote.pipeline._detect_test_command", return_value="npm test"), \
-             patch("koyote.pipeline._run_tests", return_value=mock_proc):
+        with patch("truhowl.pipeline._detect_test_command", return_value="npm test"), \
+             patch("truhowl.pipeline._run_tests", return_value=mock_proc):
             result = verify_fixes(ctx, analysis, policy)
 
         self.assertTrue(result.verified)
@@ -131,7 +131,7 @@ class TestSandboxProvenance(unittest.TestCase):
 class TestChildProcessSandboxEnforcement(unittest.TestCase):
     def test_enforced_sandbox_fails_closed_when_unsupported(self):
         """Enforced sandboxing must raise RuntimeError if platform is unsupported."""
-        with patch("koyote._core.sandbox_check_supported", return_value={"supported": "false", "platform": "mock", "details": "none"}):
+        with patch("truhowl._core.sandbox_check_supported", return_value={"supported": "false", "platform": "mock", "details": "none"}):
             with self.assertRaises(RuntimeError) as ctx:
                 run_sandboxed_command(["echo", "hi"], cwd=".", enforce=True)
             self.assertIn("Fail-closed", str(ctx.exception))
@@ -139,7 +139,7 @@ class TestChildProcessSandboxEnforcement(unittest.TestCase):
     def test_box_enter_enforce_fails_closed_when_unsupported(self):
         """Box.enter(enforce=True) raises RuntimeError if sandbox unsupported."""
         b = Box(workdir="/tmp")
-        with patch("koyote.sandbox.box._CORE", (lambda *a: False, lambda: {"supported": "false"})):
+        with patch("truhowl.sandbox.box._CORE", (lambda *a: False, lambda: {"supported": "false"})):
             with self.assertRaises(RuntimeError):
                 b.enter(sandbox=True, enforce=True)
 

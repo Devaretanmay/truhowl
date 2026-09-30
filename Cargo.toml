@@ -1,17 +1,17 @@
 [package]
-name = "koyote-core"
+name = "truhowl-core"
 version = "1.1.3"
 edition = "2021"
 license = "Apache-2.0"
-description = "Koyote - autonomous SDK/API migration worker (Rust core)"
-repository = "https://github.com/Devaretanmay/Koyote"
-homepage = "https://github.com/Devaretanmay/Koyote"
-documentation = "https://docs.rs/crate/koyote-core"
+description = "Truhowl - autonomous SDK/API migration worker (Rust core)"
+repository = "https://github.com/Devaretanmay/truhowl"
+homepage = "https://github.com/Devaretanmay/truhowl"
+documentation = "https://docs.rs/crate/truhowl-core"
 keywords = ["sdk-migration", "api-migration", "compression", "execution", "sandbox"]
 categories = ["development-tools", "command-line-utilities"]
 
 [lib]
-name = "koyote_core"
+name = "truhowl_core"
 crate-type = ["cdylib", "lib"]
 
 [features]

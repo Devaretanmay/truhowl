@@ -1,4 +1,4 @@
-# Copyright 2026 Koyote Authors
+# Copyright 2026 Truhowl Authors
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -7,12 +7,12 @@ import subprocess
 import json
 
 
-def _run_koyote_cli(args):
+def _run_truhowl_cli(args):
     env = dict(os.environ)
     env["PYTHONPATH"] = "python"
-    env.setdefault("KOYOTE_LLM_KEY", "sk-ant-test-credential-key")
+    env.setdefault("TRUHOWL_LLM_KEY", "sk-ant-test-credential-key")
     return subprocess.run(
-        [sys.executable, "-m", "koyote.cli.main"] + args,
+        [sys.executable, "-m", "truhowl.cli.main"] + args,
         capture_output=True,
         text=True,
         env=env
@@ -20,21 +20,21 @@ def _run_koyote_cli(args):
 
 
 def test_cli_audit_default():
-    result = _run_koyote_cli(["audit", "trials/fixtures/taxonomy_stripe/"])
+    result = _run_truhowl_cli(["audit", "trials/fixtures/taxonomy_stripe/"])
     assert result.returncode == 0
-    assert "KOYOTE: EXTERNAL-CHANGE DEPENDENCY AUDIT" in result.stdout
+    assert "TRUHOWL: EXTERNAL-CHANGE DEPENDENCY AUDIT" in result.stdout
     assert "Stripe" in result.stdout
 
 
 def test_cli_audit_github_issue():
-    result = _run_koyote_cli(["audit", "trials/fixtures/taxonomy_stripe/", "--format=github-issue"])
+    result = _run_truhowl_cli(["audit", "trials/fixtures/taxonomy_stripe/", "--format=github-issue"])
     assert result.returncode == 0
-    assert "# Koyote: External Dependency Map & Risk Register" in result.stdout
+    assert "# Truhowl: External Dependency Map & Risk Register" in result.stdout
     assert "| **Stripe** |" in result.stdout
 
 
 def test_cli_audit_json():
-    result = _run_koyote_cli(["audit", "trials/fixtures/taxonomy_stripe/", "--format=json"])
+    result = _run_truhowl_cli(["audit", "trials/fixtures/taxonomy_stripe/", "--format=json"])
     assert result.returncode == 0
     data = json.loads(result.stdout)
     assert "total_providers_detected" in data
@@ -42,67 +42,67 @@ def test_cli_audit_json():
 
 
 def test_cli_graph():
-    result = _run_koyote_cli(["graph", "trials/fixtures/taxonomy_stripe/"])
+    result = _run_truhowl_cli(["graph", "trials/fixtures/taxonomy_stripe/"])
     assert result.returncode == 0
-    assert "KOYOTE: EXTERNAL-CHANGE DEPENDENCY GRAPH" in result.stdout
+    assert "TRUHOWL: EXTERNAL-CHANGE DEPENDENCY GRAPH" in result.stdout
 
 
 def test_cli_check_default():
-    result = _run_koyote_cli(["check", "trials/fixtures/taxonomy_stripe/"])
+    result = _run_truhowl_cli(["check", "trials/fixtures/taxonomy_stripe/"])
     assert result.returncode == 0
-    assert "KOYOTE: EXTERNAL-CHANGE DEPENDENCY AUDIT" in result.stdout
+    assert "TRUHOWL: EXTERNAL-CHANGE DEPENDENCY AUDIT" in result.stdout
     assert "Stripe" in result.stdout
 
 
 def test_cli_fix_detect():
-    result = _run_koyote_cli(["fix", "trials/fixtures/taxonomy_stripe/", "--detect"])
+    result = _run_truhowl_cli(["fix", "trials/fixtures/taxonomy_stripe/", "--detect"])
     assert result.returncode == 0
-    assert "KOYOTE AUTONOMOUS MAINTENANCE LOOP" in result.stdout
+    assert "TRUHOWL AUTONOMOUS MAINTENANCE LOOP" in result.stdout
 
 
 def test_cli_at_howl_alias():
-    result = _run_koyote_cli(["@howl", "--help"])
+    result = _run_truhowl_cli(["@howl", "--help"])
     assert result.returncode == 0
     assert "usage:" in result.stdout
     assert "consult" in result.stdout  # alias routes to the consult parser
 
 
 def test_cli_at_hunt_alias():
-    result = _run_koyote_cli(["@hunt", "trials/fixtures/taxonomy_stripe/", "--detect"])
+    result = _run_truhowl_cli(["@hunt", "trials/fixtures/taxonomy_stripe/", "--detect"])
     assert result.returncode == 0
-    assert "KOYOTE AUTONOMOUS MAINTENANCE LOOP" in result.stdout
+    assert "TRUHOWL AUTONOMOUS MAINTENANCE LOOP" in result.stdout
 
 
 def test_cli_top_level_help_focus():
-    result = _run_koyote_cli(["--help"])
+    result = _run_truhowl_cli(["--help"])
     assert result.returncode == 0
     assert "Autonomous SDK/API Migration Worker" in result.stdout
-    assert "koyote check" in result.stdout
-    assert "koyote hunt" in result.stdout
-    assert "koyote consult" in result.stdout
+    assert "truhowl check" in result.stdout
+    assert "truhowl hunt" in result.stdout
+    assert "truhowl consult" in result.stdout
     assert "--workflow" not in result.stdout
     assert "--run" not in result.stdout
 
 
 def test_cli_hunt_help():
-    result = _run_koyote_cli(["hunt", "--help"])
+    result = _run_truhowl_cli(["hunt", "--help"])
     assert result.returncode == 0
-    assert "usage: koyote hunt" in result.stdout
+    assert "usage: truhowl hunt" in result.stdout
     assert "--provider" in result.stdout
     assert "--finding" in result.stdout
 
 
 def test_cli_hunt_detect():
-    result = _run_koyote_cli(["hunt", "trials/fixtures/taxonomy_stripe/", "--detect"])
+    result = _run_truhowl_cli(["hunt", "trials/fixtures/taxonomy_stripe/", "--detect"])
     assert result.returncode == 0
-    assert "KOYOTE AUTONOMOUS MAINTENANCE LOOP" in result.stdout
+    assert "TRUHOWL AUTONOMOUS MAINTENANCE LOOP" in result.stdout
 
 
 
 
 def test_audit_drops_string_only_drift(tmp_path):
     import os
-    from koyote import audit as audit_mod
+    from truhowl import audit as audit_mod
     repo = str(tmp_path / "r")
     os.makedirs(os.path.join(repo, "src"))
     with open(os.path.join(repo, "src", "proxy.rs"), "w") as f:
@@ -112,7 +112,7 @@ def test_audit_drops_string_only_drift(tmp_path):
 
 
 def test_is_code_evidence_classifier():
-    from koyote.audit import is_code_evidence
+    from truhowl.audit import is_code_evidence
     assert is_code_evidence({"kind": "Import", "matched_pattern": "x",
                              "line_content": "import x"}) is True
     assert is_code_evidence({"kind": None, "matched_pattern": "stripe",

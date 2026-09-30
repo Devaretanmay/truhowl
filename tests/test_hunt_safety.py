@@ -1,4 +1,4 @@
-# Copyright 2026 Koyote Authors
+# Copyright 2026 Truhowl Authors
 # SPDX-License-Identifier: Apache-2.0
 """Hunt safety hardening: concurrency, identity, promotion, secrets.
 
@@ -14,9 +14,9 @@ import time
 
 import pytest
 
-from koyote import hunt as hunt_agent
-from koyote import hunt_ports as hp
-from koyote.hunt import (
+from truhowl import hunt as hunt_agent
+from truhowl import hunt_ports as hp
+from truhowl.hunt import (
     HuntLock,
     list_findings,
     run_hunt,
@@ -26,8 +26,8 @@ from koyote.hunt import (
 
 def _init_git_repo(path: str) -> None:
     subprocess.run(["git", "init", "-b", "main"], cwd=path, check=True, capture_output=True)
-    subprocess.run(["git", "config", "user.name", "Koyote Test"], cwd=path, check=True, capture_output=True)
-    subprocess.run(["git", "config", "user.email", "test@koyote.dev"], cwd=path, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.name", "Truhowl Test"], cwd=path, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.email", "test@truhowl.dev"], cwd=path, check=True, capture_output=True)
     subprocess.run(["git", "add", "-A"], cwd=path, check=True, capture_output=True)
     subprocess.run(["git", "commit", "-m", "initial"], cwd=path, check=True, capture_output=True)
 
@@ -46,7 +46,7 @@ def _make_repo(tmp_path) -> str:
 
 
 def _raw_patch(abs_path: str):
-    from koyote.patch_writer import PatchResult
+    from truhowl.patch_writer import PatchResult
 
     return PatchResult(file_path=abs_path, success=True, lines_changed=1,
                        unified_diff="--- a\n+++ b\n+x\n", rules_applied=["r"])
@@ -114,7 +114,7 @@ def test_finding_ids_stable_across_path_spellings(tmp_path, monkeypatch):
 
     Regression: absolute paths leaked into ids, so /tmp/x and
     /private/tmp/x (same dir on macOS) produced different ids and
-    `koyote hunt <id>` refused real findings as unknown.
+    `truhowl hunt <id>` refused real findings as unknown.
     """
     repo = _make_repo(tmp_path)
     link = str(tmp_path / "linked")
@@ -231,7 +231,7 @@ def test_finding_summary_admits_registry_basis(tmp_path):
 
 
 def test_context_labels_drift_evidence(tmp_path):
-    from koyote.hunt import gather_context
+    from truhowl.hunt import gather_context
 
     repo = _make_repo(tmp_path)
     ctx = gather_context(repo, list_findings(repo)[0])

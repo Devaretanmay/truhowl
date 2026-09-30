@@ -2,10 +2,10 @@ import os
 import shutil
 from unittest.mock import MagicMock, patch
 
-from koyote.ai_planner import AIPatchPlanner
-from koyote.config import PipelinePolicy, load_config
-import koyote.github.pr_bot as pr_bot_mod
-from koyote.github.pr_bot import (
+from truhowl.ai_planner import AIPatchPlanner
+from truhowl.config import PipelinePolicy, load_config
+import truhowl.github.pr_bot as pr_bot_mod
+from truhowl.github.pr_bot import (
     handle_pull_request_event,
     handle_installation_event,
     handle_issue_comment_event,
@@ -14,7 +14,7 @@ from koyote.github.pr_bot import (
     _extract_changed_files,
     _safe_preview,
 )
-from koyote.llm import LLMClient, LLMResponse
+from truhowl.llm import LLMClient, LLMResponse
 
 
 def test_extract_changed_files_from_payload():
@@ -26,7 +26,7 @@ def test_extract_changed_files_from_payload():
     assert _extract_changed_files(payload_files) == ["src/api.ts", "package.json"]
 
     payload_meta = {
-        "koyote": {"changed_files": ["lib/stripe.ts"]}
+        "truhowl": {"changed_files": ["lib/stripe.ts"]}
     }
     assert _extract_changed_files(payload_meta) == ["lib/stripe.ts"]
 
@@ -77,19 +77,19 @@ def test_make_pr_bot_handler_dispatches_events():
     assert res_unhandled["success"] is True
     assert res_unhandled["handled"] is False
 
-    with patch("koyote.github.pr_bot.handle_pull_request_event") as mock_handle_pr:
+    with patch("truhowl.github.pr_bot.handle_pull_request_event") as mock_handle_pr:
         mock_handle_pr.return_value = {"success": True, "handled_pr": True}
         res_pr = handler({"pull_request": {}}, "pull_request.opened")
         assert res_pr["handled_pr"] is True
         mock_handle_pr.assert_called_once()
 
-    with patch("koyote.github.pr_bot.handle_external_change_event") as mock_handle_ext:
+    with patch("truhowl.github.pr_bot.handle_external_change_event") as mock_handle_ext:
         mock_handle_ext.return_value = {"success": True, "handled_ext": True}
         res_ext = handler({}, "external.change.drift")
         assert res_ext["handled_ext"] is True
         mock_handle_ext.assert_called_once()
 
-    with patch("koyote.github.pr_bot.handle_installation_event") as mock_handle_inst:
+    with patch("truhowl.github.pr_bot.handle_installation_event") as mock_handle_inst:
         mock_handle_inst.return_value = {"success": True, "handled_inst": True}
         res_inst = handler({"repositories": []}, "installation.created")
         assert res_inst["handled_inst"] is True
@@ -110,7 +110,7 @@ def test_handle_installation_event():
 
 def test_render_day0_onboarding_issue():
     content = render_day0_onboarding_issue("acme/backend")
-    assert "KOYOTE DAY-0 REPOSITORY ONBOARDING" in content
+    assert "TRUHOWL DAY-0 REPOSITORY ONBOARDING" in content
     assert "acme/backend" in content
     assert "Continuous Guard Status:" in content
 
@@ -129,7 +129,7 @@ def test_handle_pull_request_event_mergeable_flag():
             "base": {"ref": "main"},
         },
     }
-    with patch("koyote.github.pr_bot.MaintenancePipeline") as mock_pipe_cls:
+    with patch("truhowl.github.pr_bot.MaintenancePipeline") as mock_pipe_cls:
         mock_pipe = mock_pipe_cls.return_value
         mock_result = MagicMock()
         mock_result.status = "clean"
@@ -168,7 +168,7 @@ def test_issue_comment_without_mention_ignored():
 def test_issue_comment_bot_sender_ignored():
     client = MagicMock()
     res = handle_issue_comment_event(
-        _comment_payload("@koyote please", sender_type="Bot"), "issue_comment.created", client)
+        _comment_payload("@truhowl please", sender_type="Bot"), "issue_comment.created", client)
     assert res["handled"] is False
 
 
@@ -179,10 +179,10 @@ def test_issue_comment_rerun_delegates_to_pr_handler():
         "head": {"ref": "feat", "sha": "abc"},
         "base": {"ref": "main"},
     }
-    with patch("koyote.github.pr_bot.handle_pull_request_event") as mock_pr:
+    with patch("truhowl.github.pr_bot.handle_pull_request_event") as mock_pr:
         mock_pr.return_value = {"success": True}
         res = handle_issue_comment_event(
-            _comment_payload("@koyote please re-run"), "issue_comment.created", client)
+            _comment_payload("@truhowl please re-run"), "issue_comment.created", client)
         assert res == {"success": True}
         passed_payload = mock_pr.call_args[0][0]
         assert passed_payload["pull_request"]["head"]["sha"] == "abc"
@@ -190,8 +190,8 @@ def test_issue_comment_rerun_delegates_to_pr_handler():
 
 
 def test_issue_comment_explain_without_creds_refuses(tmp_path, monkeypatch):
-    monkeypatch.setenv("KOYOTE_CREDENTIALS_FILE", str(tmp_path / "none.json"))
-    for k in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "KOYOTE_LLM_KEY"):
+    monkeypatch.setenv("TRUHOWL_CREDENTIALS_FILE", str(tmp_path / "none.json"))
+    for k in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "TRUHOWL_LLM_KEY"):
         monkeypatch.delenv(k, raising=False)
     client = MagicMock()
     client.get_pull_request.return_value = {
@@ -201,7 +201,7 @@ def test_issue_comment_explain_without_creds_refuses(tmp_path, monkeypatch):
     }
     client.get_pull_request_files.return_value = []
     res = handle_issue_comment_event(
-        _comment_payload("@koyote explain this"), "issue_comment.created", client,
+        _comment_payload("@truhowl explain this"), "issue_comment.created", client,
         workdir=str(tmp_path))
     assert res["success"] is False
     assert "no provider configured" in res["error"]
@@ -225,7 +225,7 @@ def test_issue_comment_explain_posts_assessment(tmp_path, monkeypatch):
     client.get_pull_request_files.return_value = [
         {"filename": "package.json"}, {"filename": "src/billing.ts"}]
     res = handle_issue_comment_event(
-        _comment_payload("@koyote explain this"), "issue_comment.created", client,
+        _comment_payload("@truhowl explain this"), "issue_comment.created", client,
         workdir=str(tmp_path / "repo"))
     assert res["success"] is True
     assert res["comment_posted"] is True
@@ -264,7 +264,7 @@ def test_pr_skipped_when_all_files_ignored():
         },
         "repository": {"full_name": "acme/backend"},
     }
-    with patch("koyote.github.pr_bot.MaintenancePipeline") as mock_pipe_cls:
+    with patch("truhowl.github.pr_bot.MaintenancePipeline") as mock_pipe_cls:
         res = handle_pull_request_event(payload, "pull_request.opened", client, policy)
         assert res.get("skipped") is True
         mock_pipe_cls.return_value.run.assert_not_called()

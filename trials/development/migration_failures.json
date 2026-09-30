@@ -1,0 +1,40 @@
+{
+  "schema": "koyote.migration_failures.v1",
+  "cases": 2,
+  "verified": 0,
+  "refused": 2,
+  "false_verified": 0,
+  "counts": {
+    "MODEL_RATE_LIMIT": 2
+  },
+  "by_migration_unit": {},
+  "records": [
+    {
+      "case": "sentry_hub",
+      "label": "DEVELOPMENT CASE",
+      "author": "llm",
+      "outcome": "REFUSED",
+      "detail": "hard timeout after 180s",
+      "classification": {
+        "category": "MODEL_RATE_LIMIT",
+        "detail": "provider retries exhausted the case budget before a candidate was sealed"
+      },
+      "duration_s": 180.0
+    },
+    {
+      "case": "uploadthing_clerk",
+      "label": "DEVELOPMENT CASE",
+      "author": "llm",
+      "outcome": "REFUSED",
+      "detail": "hard timeout after 180s",
+      "classification": {
+        "category": "MODEL_RATE_LIMIT",
+        "detail": "provider retries exhausted the case budget before a candidate was sealed"
+      },
+      "duration_s": 180.0
+    }
+  ],
+  "label": "DEVELOPMENT CASES \u2014 not held-out benchmark evidence",
+  "session": "2026-09-30T14:45:31",
+  "note": "These repositories were observed by Koyote before this pass and Koyote was modified in response to them, so they cannot count as held-out evidence."
+}

@@ -1,4 +1,4 @@
-# Copyright 2026 Koyote Authors
+# Copyright 2026 Truhowl Authors
 # SPDX-License-Identifier: Apache-2.0
 """Exact-SHA honesty: pushed revision inspected when obtainable, else disclosed."""
 
@@ -6,9 +6,9 @@ import json
 import os
 import subprocess
 
-from koyote import cross_repo, work_graph
-from koyote.github.pr_bot import handle_push_event
-from koyote.github.push_events import parse_push_payload
+from truhowl import cross_repo, work_graph
+from truhowl.github.pr_bot import handle_push_event
+from truhowl.github.push_events import parse_push_payload
 
 
 def _git(cwd, *args):
@@ -32,10 +32,10 @@ def _git_repo(path, branch="feature/payments"):
 
 
 def _env(tmp_path, monkeypatch):
-    monkeypatch.setenv("KOYOTE_WORK_GRAPH_FILE", str(tmp_path / "wg.json"))
-    monkeypatch.setenv("KOYOTE_INSTALLATIONS_DIR", str(tmp_path / "installs"))
-    monkeypatch.setenv("KOYOTE_REPOS_DIR", str(tmp_path / "repos"))
-    os.makedirs(os.environ["KOYOTE_INSTALLATIONS_DIR"], exist_ok=True)
+    monkeypatch.setenv("TRUHOWL_WORK_GRAPH_FILE", str(tmp_path / "wg.json"))
+    monkeypatch.setenv("TRUHOWL_INSTALLATIONS_DIR", str(tmp_path / "installs"))
+    monkeypatch.setenv("TRUHOWL_REPOS_DIR", str(tmp_path / "repos"))
+    os.makedirs(os.environ["TRUHOWL_INSTALLATIONS_DIR"], exist_ok=True)
 
 
 def _push(after):
@@ -49,7 +49,7 @@ def _push(after):
 def test_exact_sha_inspected_when_obtainable(tmp_path, monkeypatch):
     _env(tmp_path, monkeypatch)
     sha = _git_repo(str(tmp_path / "upstream"))
-    monkeypatch.setenv("KOYOTE_REPO_REMOTE_ACME__API-SERVICE",
+    monkeypatch.setenv("TRUHOWL_REPO_REMOTE_ACME__API-SERVICE",
                        str(tmp_path / "upstream"))
     res = handle_push_event(_push(sha), client=None)
     assert res["exact_sha"] is True
@@ -77,7 +77,7 @@ def test_state_survives_reload(tmp_path, monkeypatch):
                                     work_graph.POTENTIAL)
     work_graph.record_branch_activity("acme/api-service", "feature/payments",
                                       "abc123")
-    raw = json.load(open(os.environ["KOYOTE_WORK_GRAPH_FILE"]))
+    raw = json.load(open(os.environ["TRUHOWL_WORK_GRAPH_FILE"]))
     cid = work_graph.candidate_id("acme/api-service", "feature/payments")
     assert raw["candidates"][cid]["head_sha"] == "abc123"
     assert raw["candidates"][cid]["exact_sha"] is True

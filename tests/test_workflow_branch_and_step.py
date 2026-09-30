@@ -1,8 +1,8 @@
 """Tests for Git-branch-style workflow creation and auto-inferred step additions.
 
 Covers:
-- `koyote branch <name>` / `koyote workflow branch <name>`
-- `koyote step <workflow> <target>` with smart property auto-inference
+- `truhowl branch <name>` / `truhowl workflow branch <name>`
+- `truhowl step <workflow> <target>` with smart property auto-inference
 - Auto-chaining of `depends_on` between sequential steps
 - Multi-step workflow execution from `workflows/<name>.yaml`
 """
@@ -16,10 +16,10 @@ from contextlib import redirect_stdout
 import pytest
 import yaml
 
-from koyote.cli.main import (
+from truhowl.cli.main import (
     cmd_workflow_branch, cmd_step, cmd_workflow_run, cmd_run, _infer_step_properties
 )
-from koyote.hooks.base import ExecutionResult
+from truhowl.hooks.base import ExecutionResult
 
 
 def test_infer_step_properties():
@@ -46,12 +46,12 @@ def test_infer_step_properties():
 
 
 def test_workflow_branch_creation():
-    """`koyote branch <name>` creates workflows/<name>.yaml."""
+    """`truhowl branch <name>` creates workflows/<name>.yaml."""
     tmp = tempfile.mkdtemp()
     old_cwd = os.getcwd()
     os.chdir(tmp)
     try:
-        os.makedirs(os.path.join(tmp, ".koyote"))
+        os.makedirs(os.path.join(tmp, ".truhowl"))
 
         class _BranchArgs:
             name = "doc-pipe"
@@ -73,12 +73,12 @@ def test_workflow_branch_creation():
 
 
 def test_step_addition_and_autochaining():
-    """`koyote step` appends steps and auto-chains depends_on."""
+    """`truhowl step` appends steps and auto-chains depends_on."""
     tmp = tempfile.mkdtemp()
     old_cwd = os.getcwd()
     os.chdir(tmp)
     try:
-        os.makedirs(os.path.join(tmp, ".koyote"))
+        os.makedirs(os.path.join(tmp, ".truhowl"))
 
         class _BranchArgs:
             name = "invoice-flow"
@@ -136,13 +136,13 @@ def test_step_addition_and_autochaining():
 
 
 def test_workflow_run_from_workflows_dir(monkeypatch):
-    """`koyote workflow run <name>` executes workflow defined in workflows/<name>.yaml."""
+    """`truhowl workflow run <name>` executes workflow defined in workflows/<name>.yaml."""
     tmp = tempfile.mkdtemp()
     old_cwd = os.getcwd()
     os.chdir(tmp)
     try:
-        os.makedirs(os.path.join(tmp, ".koyote"))
-        with open(os.path.join(tmp, ".koyote", "config.yaml"), "w") as f:
+        os.makedirs(os.path.join(tmp, ".truhowl"))
+        with open(os.path.join(tmp, ".truhowl", "config.yaml"), "w") as f:
             f.write("compartments:\n  default:\n    filesystem: workspace\n  research:\n    filesystem: read-only\n")
 
         recorded_commands = []
@@ -153,7 +153,7 @@ def test_workflow_run_from_workflows_dir(monkeypatch):
                 recorded_commands.append(cmd)
                 return ExecutionResult(returncode=0, stderr="", stdout="ok", diffs=[])
 
-        monkeypatch.setattr("koyote.cli.main.SandboxRunner", _MockRunner)
+        monkeypatch.setattr("truhowl.cli.main.SandboxRunner", _MockRunner)
 
         class _BranchArgs:
             name = "my-pipeline"
@@ -184,12 +184,12 @@ def test_workflow_run_from_workflows_dir(monkeypatch):
 
 
 def test_step_directory_batch_scan():
-    """`koyote step <wf> src/` scans directory and adds all scripts sequentially."""
+    """`truhowl step <wf> src/` scans directory and adds all scripts sequentially."""
     tmp = tempfile.mkdtemp()
     old_cwd = os.getcwd()
     os.chdir(tmp)
     try:
-        os.makedirs(os.path.join(tmp, ".koyote"))
+        os.makedirs(os.path.join(tmp, ".truhowl"))
         src_dir = os.path.join(tmp, "src")
         os.makedirs(src_dir)
 
@@ -238,14 +238,14 @@ def test_step_directory_batch_scan():
         shutil.rmtree(tmp, ignore_errors=True)
 
 
-def test_koyote_run_short_command(monkeypatch):
-    """`koyote run <name>` executes declared workflow directly without 'workflow run'."""
+def test_truhowl_run_short_command(monkeypatch):
+    """`truhowl run <name>` executes declared workflow directly without 'workflow run'."""
     tmp = tempfile.mkdtemp()
     old_cwd = os.getcwd()
     os.chdir(tmp)
     try:
-        os.makedirs(os.path.join(tmp, ".koyote"))
-        with open(os.path.join(tmp, ".koyote", "config.yaml"), "w") as f:
+        os.makedirs(os.path.join(tmp, ".truhowl"))
+        with open(os.path.join(tmp, ".truhowl", "config.yaml"), "w") as f:
             f.write("compartments:\n  default:\n    filesystem: workspace\n")
 
         executed = []
@@ -256,7 +256,7 @@ def test_koyote_run_short_command(monkeypatch):
                 executed.append(cmd)
                 return ExecutionResult(returncode=0, stderr="", stdout="ok", diffs=[])
 
-        monkeypatch.setattr("koyote.cli.main.SandboxRunner", _MockRunner)
+        monkeypatch.setattr("truhowl.cli.main.SandboxRunner", _MockRunner)
 
         class _BranchArgs:
             name = "short-run-pipe"

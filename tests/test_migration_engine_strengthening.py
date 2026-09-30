@@ -1,15 +1,15 @@
-# Copyright 2026 Koyote Authors
+# Copyright 2026 Truhowl Authors
 # SPDX-License-Identifier: Apache-2.0
 """Tests for hardened migration reasoning, windowed callsites, and structured test feedback."""
 
 from unittest.mock import MagicMock
 
-from koyote.ai_planner import (
+from truhowl.ai_planner import (
     AIPatchPlanner,
     bound_file_content,
 )
-from koyote.llm import LLMClient, LLMResponse
-from koyote.test_feedback import extract_structured_test_feedback
+from truhowl.llm import LLMClient, LLMResponse
+from truhowl.test_feedback import extract_structured_test_feedback
 
 
 def test_bound_file_content_small_file():

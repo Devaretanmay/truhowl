@@ -14,7 +14,9 @@ build/
 .pytest_cache/
 .venv/
 
-# Koyote transient state
+# Truhowl transient state
+.truhowl/
+# Legacy Koyote-era state (transition fallback, remove after Phase 1)
 .koyote/
 
 # Language SDK artifacts
@@ -34,6 +36,7 @@ logs/
 .envrc
 
 # Test runs write index state into fixture checkouts; never commit it
+trials/**/.truhowl/
 trials/**/.koyote/
 trials/**/.volf/
 trials/**/.sheepdog/

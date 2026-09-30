@@ -1,10 +1,10 @@
-# Copyright 2026 Koyote Authors
+# Copyright 2026 Truhowl Authors
 """Provisioning: clone-on-install, pull-on-sighting, payload resolution. No network."""
 
 import os
 import subprocess
 
-from koyote.github.provisioning import (
+from truhowl.github.provisioning import (
     cached_path, ensure_repo_checkout, remote_for, workdir_for_event,
 )
 
@@ -26,8 +26,8 @@ def _seed_remote(tmp_path) -> str:
 
 
 def test_clone_and_cached_path(tmp_path, monkeypatch):
-    monkeypatch.setenv("KOYOTE_REPOS_DIR", str(tmp_path / "repos"))
-    monkeypatch.setenv("KOYOTE_REPO_REMOTE_ACME__BACKEND", _seed_remote(tmp_path))
+    monkeypatch.setenv("TRUHOWL_REPOS_DIR", str(tmp_path / "repos"))
+    monkeypatch.setenv("TRUHOWL_REPO_REMOTE_ACME__BACKEND", _seed_remote(tmp_path))
     dest = ensure_repo_checkout("acme/backend")
     assert dest == cached_path("acme/backend")
     assert os.path.isfile(os.path.join(dest, "package.json"))
@@ -35,14 +35,14 @@ def test_clone_and_cached_path(tmp_path, monkeypatch):
 
 
 def test_unreachable_remote_returns_none(tmp_path, monkeypatch):
-    monkeypatch.setenv("KOYOTE_REPOS_DIR", str(tmp_path / "repos"))
-    monkeypatch.setenv("KOYOTE_REPO_REMOTE_GHOST__NOPE", "/nonexistent/path/xyz")
+    monkeypatch.setenv("TRUHOWL_REPOS_DIR", str(tmp_path / "repos"))
+    monkeypatch.setenv("TRUHOWL_REPO_REMOTE_GHOST__NOPE", "/nonexistent/path/xyz")
     assert ensure_repo_checkout("ghost/nope") is None
 
 
 def test_workdir_for_event(tmp_path, monkeypatch):
-    monkeypatch.setenv("KOYOTE_REPOS_DIR", str(tmp_path / "repos"))
-    monkeypatch.setenv("KOYOTE_REPO_REMOTE_ACME__BACKEND", _seed_remote(tmp_path))
+    monkeypatch.setenv("TRUHOWL_REPOS_DIR", str(tmp_path / "repos"))
+    monkeypatch.setenv("TRUHOWL_REPO_REMOTE_ACME__BACKEND", _seed_remote(tmp_path))
     assert workdir_for_event({"repository": {"full_name": "acme/backend"}}) is not None
     assert workdir_for_event({}) is None
 
@@ -50,5 +50,5 @@ def test_workdir_for_event(tmp_path, monkeypatch):
 def test_remote_for_prefers_token_and_override(tmp_path, monkeypatch):
     assert remote_for("a/b", token="tok") == "https://x-access-token:tok@github.com/a/b.git"
     assert remote_for("a/b") == "https://github.com/a/b.git"
-    monkeypatch.setenv("KOYOTE_REPO_REMOTE_A__B", "/mirror/b")
+    monkeypatch.setenv("TRUHOWL_REPO_REMOTE_A__B", "/mirror/b")
     assert remote_for("a/b") == "/mirror/b"

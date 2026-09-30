@@ -1,0 +1,1 @@
+{"openapi": "3.0.0", "info": {"title": "Sentry", "version": "7"}, "paths": {"/api/0/sentry": {"post": {"operationId": "getCurrentHub", "parameters": [{"name": "getCurrentHub().getClient()", "in": "query", "schema": {"type": "string"}}]}}}}

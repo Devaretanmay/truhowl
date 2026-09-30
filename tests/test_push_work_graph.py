@@ -1,11 +1,11 @@
-# Copyright 2026 Koyote Authors
+# Copyright 2026 Truhowl Authors
 """Phase 1: push is an observation, never an alert."""
 
 import time
 
-from koyote import work_graph
-from koyote.github.push_events import parse_push_payload
-from koyote.github.pr_bot import handle_push_event
+from truhowl import work_graph
+from truhowl.github.push_events import parse_push_payload
+from truhowl.github.pr_bot import handle_push_event
 
 
 def _push(repo="acme/api-service", branch="feature/payments", after="abc123"):
@@ -24,7 +24,7 @@ def _push(repo="acme/api-service", branch="feature/payments", after="abc123"):
 
 
 def test_parse_normal_and_ignores(tmp_path, monkeypatch):
-    monkeypatch.setenv("KOYOTE_WORK_GRAPH_FILE", str(tmp_path / "wg.json"))
+    monkeypatch.setenv("TRUHOWL_WORK_GRAPH_FILE", str(tmp_path / "wg.json"))
     obs = parse_push_payload(_push())
     assert obs["repository"] == "acme/api-service"
     assert obs["branch"] == "feature/payments"
@@ -35,7 +35,7 @@ def test_parse_normal_and_ignores(tmp_path, monkeypatch):
 
 
 def test_parse_forced_push_updates_candidate(tmp_path, monkeypatch):
-    monkeypatch.setenv("KOYOTE_WORK_GRAPH_FILE", str(tmp_path / "wg.json"))
+    monkeypatch.setenv("TRUHOWL_WORK_GRAPH_FILE", str(tmp_path / "wg.json"))
     first = _push(after="aaa")
     forced = _push(after="bbb")
     forced["forced"] = True
@@ -55,7 +55,7 @@ def test_parse_ignores_non_branch_refs_and_malformed():
 
 
 def test_candidate_grouping_and_reeval(tmp_path, monkeypatch):
-    monkeypatch.setenv("KOYOTE_WORK_GRAPH_FILE", str(tmp_path / "wg.json"))
+    monkeypatch.setenv("TRUHOWL_WORK_GRAPH_FILE", str(tmp_path / "wg.json"))
     c1 = work_graph.record_push(parse_push_payload(_push(after="aaa")))
     assert c1["status"] == work_graph.OBSERVED
     c2 = work_graph.record_push(parse_push_payload(_push(after="bbb")))
@@ -67,7 +67,7 @@ def test_candidate_grouping_and_reeval(tmp_path, monkeypatch):
 
 
 def test_active_work_definition(tmp_path, monkeypatch):
-    monkeypatch.setenv("KOYOTE_WORK_GRAPH_FILE", str(tmp_path / "wg.json"))
+    monkeypatch.setenv("TRUHOWL_WORK_GRAPH_FILE", str(tmp_path / "wg.json"))
     assert work_graph.is_active_work("acme/api-service", "feature/payments") is False
     work_graph.record_push(parse_push_payload(_push()))
     assert work_graph.is_active_work("acme/api-service", "feature/payments") is True
@@ -77,7 +77,7 @@ def test_active_work_definition(tmp_path, monkeypatch):
 
 
 def test_handler_ingests_without_notify(tmp_path, monkeypatch):
-    monkeypatch.setenv("KOYOTE_WORK_GRAPH_FILE", str(tmp_path / "wg.json"))
+    monkeypatch.setenv("TRUHOWL_WORK_GRAPH_FILE", str(tmp_path / "wg.json"))
     res = handle_push_event(_push(), client=None)
     assert res["success"] is True and res["handled"] is True
     assert res["notified"] is False

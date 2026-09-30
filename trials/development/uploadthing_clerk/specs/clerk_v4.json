@@ -1,0 +1,1 @@
+{"openapi": "3.0.0", "info": {"title": "Clerk", "version": "4"}, "paths": {"/v1/auth/middleware": {"post": {"operationId": "authMiddleware", "parameters": [{"name": "authMiddleware", "in": "query", "schema": {"type": "string"}}]}}}}

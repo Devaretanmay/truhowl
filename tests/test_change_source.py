@@ -1,9 +1,9 @@
-# Copyright 2026 Koyote Authors
+# Copyright 2026 Truhowl Authors
 """ChangeSource abstraction: kinds constructible, provider adapter round-trips."""
 
 import pytest
 
-from koyote.change_source import (
+from truhowl.change_source import (
     ChangeSource, Detection, KINDS,
     NO_IMPACT, IMPACT_AI, IMPACT_QUARANTINE,
 )

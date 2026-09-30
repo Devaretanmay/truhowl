@@ -1,6 +1,6 @@
 # Zero-Trust Credential Proxy Guide
 
-Koyote includes a built-in Credential Proxy that allows AI agents to make outbound API requests without ever storing raw API keys in agent-readable configuration: keys live in host environment variables and are injected into proxied requests in memory.
+Truhowl includes a built-in Credential Proxy that allows AI agents to make outbound API requests without ever storing raw API keys in agent-readable configuration: keys live in host environment variables and are injected into proxied requests in memory.
 
 ---
 
@@ -8,14 +8,14 @@ Koyote includes a built-in Credential Proxy that allows AI agents to make outbou
 
 Agent applications often need to issue HTTP calls to LLM providers (e.g. OpenAI, Anthropic, Hugging Face) or external microservices. Storing raw API keys in environment variables inside an untrusted agent environment risks prompt injection leaks or secret theft.
 
-The Koyote Credential Proxy operates as a local HTTP proxy server that intercepts requests matching predefined route patterns and injects authentication headers in memory before forwarding requests upstream.
+The Truhowl Credential Proxy operates as a local HTTP proxy server that intercepts requests matching predefined route patterns and injects authentication headers in memory before forwarding requests upstream.
 
 ---
 
 ## 2. Configuring Proxy Routes (`RouteConfig`)
 
 ```python
-from koyote.sandbox.proxy import CredentialProxy, RouteConfig
+from truhowl.sandbox.proxy import CredentialProxy, RouteConfig
 
 proxy = CredentialProxy(routes=[
     RouteConfig(

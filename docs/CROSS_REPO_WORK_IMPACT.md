@@ -1,6 +1,6 @@
 # Cross-Repository Active-Work Impact
 
-Koyote detects when a change in one connected repository is likely to affect
+Truhowl detects when a change in one connected repository is likely to affect
 active developer work in another connected repository.
 
 ```text
@@ -17,7 +17,7 @@ produces a user-visible notification. Transient impact retracts silently.
 ## How it works
 
 1. **Observe.** The `push` webhook is ingested into one evolving candidate per
-   repository + branch. Koyote attempts to check out the exact pushed SHA;
+   repository + branch. Truhowl attempts to check out the exact pushed SHA;
    when unavailable, analysis is explicitly marked as fallback, never as
    exact-revision analysis.
 2. **Filter cheaply.** Installed repositories only (v1 scope — no external or
@@ -47,5 +47,5 @@ normal AI-authored, sandbox-verified PR flow.
 
 ## State scope
 
-Work Graph state is local JSON (`~/.koyote/work_graph.json`, 0600). One
+Work Graph state is local JSON (`~/.truhowl/work_graph.json`, 0600). One
 device's candidates are not automatically visible on another device.

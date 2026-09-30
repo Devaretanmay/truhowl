@@ -1,4 +1,4 @@
-# Copyright 2026 Koyote Authors
+# Copyright 2026 Truhowl Authors
 # SPDX-License-Identifier: Apache-2.0
 """Phase 3: STABLE -> CONFIRMED -> NOTIFIED. Work-naming Issues, fan-out, dedupe."""
 
@@ -7,11 +7,11 @@ import os
 import subprocess
 import time
 
-from koyote import cross_repo, work_graph
-from koyote.github.provisioning import cached_path
-from koyote.github.push_events import parse_push_payload
-from koyote.github.pr_bot import handle_push_event, make_pr_bot_handler
-from koyote.github.watch import watch_once
+from truhowl import cross_repo, work_graph
+from truhowl.github.provisioning import cached_path
+from truhowl.github.push_events import parse_push_payload
+from truhowl.github.pr_bot import handle_push_event, make_pr_bot_handler
+from truhowl.github.watch import watch_once
 
 
 class StubPlanner:
@@ -46,14 +46,14 @@ class FakeClient:
 
 
 def _env(tmp_path, monkeypatch):
-    monkeypatch.setenv("KOYOTE_WORK_GRAPH_FILE", str(tmp_path / "wg.json"))
-    monkeypatch.setenv("KOYOTE_INSTALLATIONS_DIR", str(tmp_path / "installs"))
-    monkeypatch.setenv("KOYOTE_REPOS_DIR", str(tmp_path / "repos"))
-    os.makedirs(os.environ["KOYOTE_INSTALLATIONS_DIR"], exist_ok=True)
+    monkeypatch.setenv("TRUHOWL_WORK_GRAPH_FILE", str(tmp_path / "wg.json"))
+    monkeypatch.setenv("TRUHOWL_INSTALLATIONS_DIR", str(tmp_path / "installs"))
+    monkeypatch.setenv("TRUHOWL_REPOS_DIR", str(tmp_path / "repos"))
+    os.makedirs(os.environ["TRUHOWL_INSTALLATIONS_DIR"], exist_ok=True)
 
 
 def _install(*repos):
-    with open(os.path.join(os.environ["KOYOTE_INSTALLATIONS_DIR"], "1.json"), "w") as f:
+    with open(os.path.join(os.environ["TRUHOWL_INSTALLATIONS_DIR"], "1.json"), "w") as f:
         json.dump({"installation_id": "1",
                    "repos": {r: {"state": "READY"} for r in repos}}, f)
 
@@ -108,7 +108,7 @@ def test_sweep_notifies_work_naming_issue(tmp_path, monkeypatch):
     _potential(tmp_path, monkeypatch, confidence="medium")
     client = FakeClient()
     before = open(os.path.join(
-        __import__("koyote.github.provisioning", fromlist=["cached_path"]).cached_path("acme/admin"),
+        __import__("truhowl.github.provisioning", fromlist=["cached_path"]).cached_path("acme/admin"),
         "client.ts")).read()
     out = cross_repo.sweep_and_notify(client, quiet_s=0, now=time.time() + 10**6)
     assert out[0]["confirmed"] is True and out[0]["notified"] is True
@@ -186,7 +186,7 @@ def test_pr_event_without_candidate_untouched(tmp_path, monkeypatch):
         "pull_request": {"number": 1, "head": {"ref": "x", "sha": "y"}, "merged": False},
     }, client)
     assert res == {"fastpath": False}
-    assert not os.path.exists(os.environ["KOYOTE_WORK_GRAPH_FILE"])
+    assert not os.path.exists(os.environ["TRUHOWL_WORK_GRAPH_FILE"])
 
 
 def test_post_notify_retraction_closes_issue(tmp_path, monkeypatch):
@@ -240,7 +240,7 @@ def test_merge_dispatch_confirms_immediately(tmp_path, monkeypatch):
     pushed = handle_push_event(_raw_push("acme/api-service", "feature/payments", "aaa"), client)
     assert pushed["status"] == work_graph.POTENTIAL
     sha = _git_repo(str(tmp_path / "upstream"))
-    monkeypatch.setenv("KOYOTE_REPO_REMOTE_ACME__API-SERVICE",
+    monkeypatch.setenv("TRUHOWL_REPO_REMOTE_ACME__API-SERVICE",
                        str(tmp_path / "upstream"))
     handler = make_pr_bot_handler(client=client, policy=None)
     res = handler({

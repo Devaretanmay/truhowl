@@ -1,0 +1,7 @@
+{
+  "name": "@calcom/billing-fixture",
+  "version": "1.0.0",
+  "dependencies": {
+    "stripe": "^11.18.0"
+  }
+}

@@ -1,4 +1,4 @@
-# Copyright 2026 Koyote Authors
+# Copyright 2026 Truhowl Authors
 # SPDX-License-Identifier: Apache-2.0
 """Consult vs Work: one reasoning engine, mode controls authority only."""
 
@@ -7,13 +7,13 @@ import subprocess
 import sys
 from unittest.mock import MagicMock
 
-from koyote.ai_planner import AIPatchPlanner, build_reasoning_context
-from koyote.cli import main as cli_main
-from koyote.config import BotConfig, PipelinePolicy, load_config
-from koyote.github.pr_render import render_consult_issue
-from koyote.llm import LLMClient, LLMResponse
-from koyote.pipeline import MaintenancePipeline, TriggerContext
-import koyote.pipeline as pipe_mod
+from truhowl.ai_planner import AIPatchPlanner, build_reasoning_context
+from truhowl.cli import main as cli_main
+from truhowl.config import BotConfig, PipelinePolicy, load_config
+from truhowl.github.pr_render import render_consult_issue
+from truhowl.llm import LLMClient, LLMResponse
+from truhowl.pipeline import MaintenancePipeline, TriggerContext
+import truhowl.pipeline as pipe_mod
 
 
 ASSESS_BODY = (
@@ -40,8 +40,8 @@ def _mock_assess_client():
 def _cli_env(tmp_path):
     env = dict(os.environ)
     env["PYTHONPATH"] = "python"
-    env["KOYOTE_CREDENTIALS_FILE"] = str(tmp_path / "creds.json")
-    for k in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "KOYOTE_LLM_KEY"):
+    env["TRUHOWL_CREDENTIALS_FILE"] = str(tmp_path / "creds.json")
+    for k in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "TRUHOWL_LLM_KEY"):
         env.pop(k, None)
     return env
 
@@ -95,7 +95,7 @@ def test_render_consult_issue_declares_no_modification():
 
 def test_consult_refuses_without_credentials(tmp_path):
     res = subprocess.run(
-        [sys.executable, "-m", "koyote.cli.main", "consult", "."],
+        [sys.executable, "-m", "truhowl.cli.main", "consult", "."],
         capture_output=True, text=True, env=_cli_env(tmp_path))
     assert res.returncode == 1
     assert "AUTHENTICATION REQUIRED" in res.stdout
@@ -104,7 +104,7 @@ def test_consult_refuses_without_credentials(tmp_path):
 def test_consult_opens_issue_without_modifying(tmp_path, monkeypatch):
     dst = str(tmp_path / "r")
     _seed_repo(dst)
-    monkeypatch.setenv("KOYOTE_CREDENTIALS_FILE", str(tmp_path / "creds.json"))
+    monkeypatch.setenv("TRUHOWL_CREDENTIALS_FILE", str(tmp_path / "creds.json"))
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-testkey1234567890")
     monkeypatch.setenv("GITHUB_TOKEN", "tok")
     monkeypatch.setattr(cli_main.AIPatchPlanner, "from_env",
@@ -126,7 +126,7 @@ def test_consult_opens_issue_without_modifying(tmp_path, monkeypatch):
 def test_consult_requires_repo(tmp_path, monkeypatch):
     dst = str(tmp_path / "r")
     _seed_repo(dst)
-    monkeypatch.setenv("KOYOTE_CREDENTIALS_FILE", str(tmp_path / "creds.json"))
+    monkeypatch.setenv("TRUHOWL_CREDENTIALS_FILE", str(tmp_path / "creds.json"))
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-testkey1234567890")
     args = MagicMock()
     args.path = dst
@@ -155,8 +155,8 @@ def test_mode_defaults_to_work_and_parses_consult(tmp_path):
 def test_pipeline_consult_branch_reports_without_patching(tmp_path, monkeypatch):
     dst = str(tmp_path / "r")
     _seed_repo(dst)
-    monkeypatch.setenv("KOYOTE_CREDENTIALS_FILE", str(tmp_path / "creds.json"))
-    for k in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "KOYOTE_LLM_KEY"):
+    monkeypatch.setenv("TRUHOWL_CREDENTIALS_FILE", str(tmp_path / "creds.json"))
+    for k in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "TRUHOWL_LLM_KEY"):
         monkeypatch.delenv(k, raising=False)
     policy = PipelinePolicy(mode="consult")
     ctx = TriggerContext(event_id="e", event_type="external.change.stripe",
@@ -171,7 +171,7 @@ def test_pipeline_consult_branch_reports_without_patching(tmp_path, monkeypatch)
 def test_pipeline_consult_assesses_with_mock_planner(tmp_path, monkeypatch):
     dst = str(tmp_path / "r")
     _seed_repo(dst)
-    monkeypatch.setenv("KOYOTE_CREDENTIALS_FILE", str(tmp_path / "creds.json"))
+    monkeypatch.setenv("TRUHOWL_CREDENTIALS_FILE", str(tmp_path / "creds.json"))
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-testkey1234567890")
     monkeypatch.setattr(pipe_mod.AIPatchPlanner, "from_env",
                         classmethod(lambda cls, **k: AIPatchPlanner(client=_mock_assess_client())))

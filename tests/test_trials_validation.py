@@ -1,6 +1,6 @@
-# Copyright 2026 Koyote Authors
+# Copyright 2026 Truhowl Authors
 # SPDX-License-Identifier: Apache-2.0
-"""Validation of Koyote on migration trial fixtures.
+"""Validation of Truhowl on migration trial fixtures.
 
 Exercises:
 1. Fixture drift detection (Stripe v11->v13 and OpenAI v3->v4).
@@ -14,9 +14,9 @@ import os
 import shutil
 import subprocess
 
-from koyote import hunt as hunt_agent
-from koyote.hunt import list_findings, run_hunt
-from koyote.patch_writer import PatchResult
+from truhowl import hunt as hunt_agent
+from truhowl.hunt import list_findings, run_hunt
+from truhowl.patch_writer import PatchResult
 
 
 def test_trials_taxonomy_stripe_drift_detection():
@@ -67,8 +67,8 @@ def test_trials_fail_closed_without_live_credentials(tmp_path, monkeypatch):
     subprocess.run(["git", "commit", "-m", "init"], cwd=test_repo, check=True, capture_output=True)
 
     # Blank out any credentials
-    monkeypatch.setenv("KOYOTE_CREDENTIALS_FILE", str(tmp_path / "none.json"))
-    for k in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GROQ_API_KEY", "KOYOTE_LLM_KEY"):
+    monkeypatch.setenv("TRUHOWL_CREDENTIALS_FILE", str(tmp_path / "none.json"))
+    for k in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GROQ_API_KEY", "TRUHOWL_LLM_KEY"):
         monkeypatch.delenv(k, raising=False)
 
     findings = list_findings(test_repo)
@@ -78,7 +78,7 @@ def test_trials_fail_closed_without_live_credentials(tmp_path, monkeypatch):
     report = run_hunt(test_repo, finding_id)
     assert report.success is False
     assert report.pr_url is None
-    assert "koyote auth" in report.reason or "AI repair required" in report.reason
+    assert "truhowl auth" in report.reason or "AI repair required" in report.reason
     assert os.path.isfile(report.audit_path)
 
 
@@ -87,7 +87,10 @@ class _TrialAIPlanner:
         self.client = client
 
     def plan_and_apply(self, repo_dir=None, affected_files=None, **kwargs):
-        # Applies the migration to package.json and openai.ts
+        # Applies the COMPLETE OpenAI v3 -> v4 migration: import, client
+        # construction, type annotation, method call and response unpacking.
+        # A partial migration (callsite only) is refused by the migration
+        # completeness gate, which is the point of this pass.
         pkg_file = os.path.join(repo_dir, "package.json")
         src_file = os.path.join(repo_dir, "src/chat_models/openai.ts")
 
@@ -99,7 +102,16 @@ class _TrialAIPlanner:
 
         with open(src_file, "r") as f:
             src_content = f.read()
-        src_migrated = src_content.replace("createChatCompletion", "chat.completions.create")
+        src_migrated = (
+            src_content
+            .replace("import { Configuration, OpenAIApi } from 'openai';",
+                     "import OpenAI from 'openai';")
+            .replace("private client: OpenAIApi;", "private client: OpenAI;")
+            .replace("const config = new Configuration({ apiKey });\n    this.client = new OpenAIApi(config);",
+                     "this.client = new OpenAI({ apiKey });")
+            .replace("createChatCompletion(", "chat.completions.create(")
+            .replace("response.data.choices", "response.choices")
+        )
         with open(src_file, "w") as f:
             f.write(src_migrated)
 

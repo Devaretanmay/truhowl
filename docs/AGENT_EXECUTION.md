@@ -1,6 +1,6 @@
-# Koyote Agent Execution & Terminal TUI Supervision
+# Truhowl Agent Execution & Terminal TUI Supervision
 
-Koyote enables developers to run interactive terminal coding agents (Claude Code, OpenCode, Codex, Cursor, Aider) inside an OS kernel sandbox with zero configuration.
+Truhowl enables developers to run interactive terminal coding agents (Claude Code, OpenCode, Codex, Cursor, Aider) inside an OS kernel sandbox with zero configuration.
 
 ---
 
@@ -9,14 +9,14 @@ Koyote enables developers to run interactive terminal coding agents (Claude Code
 Launch your agent directly inside an isolated sandbox:
 
 ```bash
-koyote claude
-koyote opencode
-koyote codex
-koyote cursor
-koyote aider
+truhowl claude
+truhowl opencode
+truhowl codex
+truhowl cursor
+truhowl aider
 ```
 
-Koyote automatically:
+Truhowl automatically:
 1. Detects the genuine binary on system `PATH`.
 2. Allocates a pseudo-terminal master/slave pair (`PtySupervisor`).
 3. Takes a pre-execution BLAKE3 workspace snapshot.
@@ -34,7 +34,7 @@ Interactive agents rely on advanced terminal features that standard process pipe
 - **Signal Forwarding** (Ctrl+C for cancellation, Ctrl+D for EOF)
 - **Raw Input Mode** (instant keystroke response without enter buffering)
 
-Koyote's `PtySupervisor` bridges these capabilities seamlessly so the agent runs identically to a bare-metal session.
+Truhowl's `PtySupervisor` bridges these capabilities seamlessly so the agent runs identically to a bare-metal session.
 
 ---
 
@@ -58,14 +58,14 @@ After the agent completes its task:
 
 ```bash
 # 1. Review file changes attributed by execution
-koyote diff
+truhowl diff
 
 # 2. Promote changes to workspace baseline
-koyote apply
+truhowl apply
 
 # 3. Commit with provenance trailers
-koyote commit -m "feat(auth): add OAuth provider"
+truhowl commit -m "feat(auth): add OAuth provider"
 
 # 4. If the agent made a mistake, rollback instantly
-koyote undo
+truhowl undo
 ```

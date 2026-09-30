@@ -1,0 +1,6 @@
+{
+  "name": "taxonomy-stripe-fixture",
+  "dependencies": {
+    "stripe": "^11.18.0"
+  }
+}

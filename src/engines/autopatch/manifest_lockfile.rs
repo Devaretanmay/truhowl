@@ -1,4 +1,4 @@
-// Copyright 2026 Koyote Authors
+// Copyright 2026 Truhowl Authors
 // SPDX-License-Identifier: Apache-2.0
 
 //! Exact Manifest and Lockfile Dependency Resolution Engine.
@@ -141,7 +141,9 @@ pub fn parse_pnpm_lock(content: &str, dep_name: &str) -> Result<String, String> 
     let mut in_dep_block = false;
     for line in content.lines() {
         let trimmed = line.trim();
-        if trimmed.starts_with(&format!("{dep_name}:")) || trimmed.starts_with(&format!("'{dep_name}':")) {
+        if trimmed.starts_with(&format!("{dep_name}:"))
+            || trimmed.starts_with(&format!("'{dep_name}':"))
+        {
             in_dep_block = true;
             continue;
         }
@@ -248,9 +250,7 @@ pub fn parse_cargo_lock(content: &str, dep_name: &str) -> Result<String, String>
             continue;
         }
         if in_target_pkg && trimmed.starts_with("version = ") {
-            let ver = trimmed["version = ".len()..]
-                .trim()
-                .trim_matches('"');
+            let ver = trimmed["version = ".len()..].trim().trim_matches('"');
             return Ok(ver.to_string());
         }
     }
@@ -262,19 +262,13 @@ pub fn parse_cargo_lock(content: &str, dep_name: &str) -> Result<String, String>
 }
 
 /// Resolve exact dependency details from a repository working directory.
-pub fn resolve_dependency(
-    repo_dir: &Path,
-    dep_name: &str,
-) -> Result<ResolvedDependency, String> {
+pub fn resolve_dependency(repo_dir: &Path, dep_name: &str) -> Result<ResolvedDependency, String> {
     let pm = detect_package_manager(repo_dir)?;
     let manifest_path = repo_dir.join(pm.manifest_name());
     let lockfile_path = repo_dir.join(pm.lockfile_name());
 
     if !manifest_path.exists() {
-        return Err(format!(
-            "FAIL_CLOSED: Manifest {:?} missing",
-            manifest_path
-        ));
+        return Err(format!("FAIL_CLOSED: Manifest {:?} missing", manifest_path));
     }
 
     let manifest_content = fs::read_to_string(&manifest_path)
@@ -300,25 +294,46 @@ pub fn resolve_dependency(
         }
     };
 
-    let resolved_version = if lockfile_path.exists() {
-        let lockfile_content = fs::read_to_string(&lockfile_path)
-            .map_err(|e| format!("Failed to read lockfile {:?}: {}", lockfile_path, e))?;
-        match pm {
-            PackageManager::Pnpm => parse_pnpm_lock(&lockfile_content, dep_name)
-                .unwrap_or_else(|_| declared_range.trim_start_matches('^').trim_start_matches('~').to_string()),
-            PackageManager::Yarn => parse_yarn_lock(&lockfile_content, dep_name)
-                .unwrap_or_else(|_| declared_range.trim_start_matches('^').trim_start_matches('~').to_string()),
-            PackageManager::Npm => parse_package_lock_json(&lockfile_content, dep_name)
-                .unwrap_or_else(|_| declared_range.trim_start_matches('^').trim_start_matches('~').to_string()),
-            PackageManager::Cargo => parse_cargo_lock(&lockfile_content, dep_name)
-                .unwrap_or_else(|_| declared_range.trim_start_matches('^').trim_start_matches('~').to_string()),
-        }
-    } else {
-        declared_range
-            .trim_start_matches('^')
-            .trim_start_matches('~')
-            .to_string()
-    };
+    let resolved_version =
+        if lockfile_path.exists() {
+            let lockfile_content = fs::read_to_string(&lockfile_path)
+                .map_err(|e| format!("Failed to read lockfile {:?}: {}", lockfile_path, e))?;
+            match pm {
+                PackageManager::Pnpm => parse_pnpm_lock(&lockfile_content, dep_name)
+                    .unwrap_or_else(|_| {
+                        declared_range
+                            .trim_start_matches('^')
+                            .trim_start_matches('~')
+                            .to_string()
+                    }),
+                PackageManager::Yarn => parse_yarn_lock(&lockfile_content, dep_name)
+                    .unwrap_or_else(|_| {
+                        declared_range
+                            .trim_start_matches('^')
+                            .trim_start_matches('~')
+                            .to_string()
+                    }),
+                PackageManager::Npm => parse_package_lock_json(&lockfile_content, dep_name)
+                    .unwrap_or_else(|_| {
+                        declared_range
+                            .trim_start_matches('^')
+                            .trim_start_matches('~')
+                            .to_string()
+                    }),
+                PackageManager::Cargo => parse_cargo_lock(&lockfile_content, dep_name)
+                    .unwrap_or_else(|_| {
+                        declared_range
+                            .trim_start_matches('^')
+                            .trim_start_matches('~')
+                            .to_string()
+                    }),
+            }
+        } else {
+            declared_range
+                .trim_start_matches('^')
+                .trim_start_matches('~')
+                .to_string()
+        };
 
     Ok(ResolvedDependency {
         name: dep_name.to_string(),
@@ -389,7 +404,10 @@ packages:
                 }
             }
         }"#;
-        assert_eq!(parse_package_lock_json(npm_lock, "stripe").unwrap(), "11.18.0");
+        assert_eq!(
+            parse_package_lock_json(npm_lock, "stripe").unwrap(),
+            "11.18.0"
+        );
     }
 
     #[test]

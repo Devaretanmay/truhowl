@@ -1,14 +1,14 @@
-# Koyote SDKs
+# Truhowl SDKs
 
 **One Rust core, two thin language wrappers.**
 
-Koyote implements kernel sandboxing, output compression, and the
+Truhowl implements kernel sandboxing, output compression, and the
 compartment runtime once in Rust. The Python and TypeScript SDKs expose the
 supported native bindings directly:
 
 ```
-koyote-core (Rust)
- |-- pyo3 module  (koyote._core)     -> Python SDK (published on PyPI)
+truhowl-core (Rust)
+ |-- pyo3 module  (truhowl._core)     -> Python SDK (published on PyPI)
  `-- napi crate   (sdk/typescript/native) -> TypeScript SDK (Node addon)
 ```
 
@@ -20,7 +20,7 @@ All SDKs require the Rust core built once (from the repository root):
 cargo build --release
 ```
 
-This produces `target/release/libkoyote_core.dylib`/`.so`, and the
+This produces `target/release/libtruhowl_core.dylib`/`.so`, and the
 rlib used by the napi crate.
 
 ## TypeScript SDK: `sdk/typescript/`
@@ -31,37 +31,37 @@ packages have been built and uploaded at the same version:
 ```bash
 cd sdk/typescript
 npm install
-npm run build   # compiles the napi addon (koyote-native.<platform>-<arch>.node)
+npm run build   # compiles the napi addon (truhowl-native.<platform>-<arch>.node)
 npm test
 ```
 
 ```ts
-import * as koyote from '@koyote/sdk'
+import * as truhowl from '@truhowl/sdk'
 
-koyote.version()                    // "1.1.3"
-koyote.sandboxSupported()           // true
-const out = koyote.compress(text)
+truhowl.version()                    // "1.1.3"
+truhowl.sandboxSupported()           // true
+const out = truhowl.compress(text)
 
 // Compartment runtime handle (parse once, route many).
 // configs: { configs: [{ name: 'a', allow_outbound_to: ['b'] }, { name: 'b' }] }
 // edgesJSON: '[['a','b']]'
-const rt = new koyote.Runtime(configs, edgesJSON)
+const rt = new truhowl.Runtime(configs, edgesJSON)
 rt.canRoute('a', 'b')        // true
 rt.runOrder()                // ['a', 'b', ...]
 rt.names()                   // ['a', 'b', ...]
 ```
 
-## Python SDK: `python/koyote/`
+## Python SDK: `python/truhowl/`
 
-Published on PyPI as `koyote` : the same kernel-enforced isolation,
+Published on PyPI as `truhowl` : the same kernel-enforced isolation,
 compartments, snapshots, and credential proxy, callable from Python 3.10+:
 
 ```bash
-pip install koyote
+pip install truhowl
 ```
 
 ```python
-from koyote import Koyote
+from truhowl import Truhowl
 ```
 
 ## Notes

@@ -86,10 +86,7 @@ impl SmartCrusher {
     }
 
     #[allow(dead_code)]
-    pub fn with_scorer(
-        config: SmartCrusherConfig,
-        scorer: BM25Scorer,
-    ) -> Self {
+    pub fn with_scorer(config: SmartCrusherConfig, scorer: BM25Scorer) -> Self {
         let anchor_selector = AnchorSelector::new(AnchorConfig::default());
         let analyzer = SmartAnalyzer::new(config.clone());
         let ccr_store: Option<Arc<InMemoryCcrStore>> = Some(Arc::new(InMemoryCcrStore::new()));
@@ -362,11 +359,11 @@ impl SmartCrusher {
             let canonical = canonical_array_json(items);
             let h = hash_canonical(&canonical);
             let marker = serde_json::to_string(&serde_json::json!({
-                "_koyote_pager": {
+                "_truhowl_pager": {
                     "hash": h,
                     "total_items": items.len(),
                     "valid_indices": format!("{}..{}", self.config.preview_count, items.len().saturating_sub(1)),
-                    "instruction": format!("Call koyote_expand('{}', index) to retrieve specific rows", h)
+                    "instruction": format!("Call truhowl_expand('{}', index) to retrieve specific rows", h)
                 }
             })).unwrap_or_default();
             if let Some(store) = &self.ccr_store {
@@ -456,11 +453,11 @@ impl SmartCrusher {
             let canonical = canonical_array_json(items);
             let h = hash_canonical(&canonical);
             let marker = serde_json::to_string(&serde_json::json!({
-                "_koyote_pager": {
+                "_truhowl_pager": {
                     "hash": h,
                     "total_items": items.len(),
                     "valid_indices": format!("{}..{}", result.len(), items.len().saturating_sub(1)),
-                    "instruction": format!("Call koyote_expand('{}', index) to retrieve specific rows", h)
+                    "instruction": format!("Call truhowl_expand('{}', index) to retrieve specific rows", h)
                 }
             })).unwrap_or_default();
             if let Some(store) = &self.ccr_store {
@@ -953,10 +950,7 @@ mod tests {
 
     #[test]
     fn crusher_with_custom_scorer() {
-        let c = SmartCrusher::with_scorer(
-            SmartCrusherConfig::default(),
-            BM25Scorer::default(),
-        );
+        let c = SmartCrusher::with_scorer(SmartCrusherConfig::default(), BM25Scorer::default());
         let items: Vec<Value> = (0..30).map(|_| json!({"status": "ok"})).collect();
         let result = c.crush_array(&items, "anything", 1.0);
         assert!(result.items.len() <= 30);
@@ -1008,7 +1002,7 @@ mod tests {
         let h = result.ccr_hash.expect("ccr_hash populated on drop");
         assert_eq!(h.len(), 12);
         assert!(
-            result.dropped_summary.contains("_koyote_pager"),
+            result.dropped_summary.contains("_truhowl_pager"),
             "got: {}",
             result.dropped_summary
         );
@@ -1189,7 +1183,7 @@ mod tests {
         assert!(result.items.len() < items.len(), "lossy path didn't fire");
         assert!(result.ccr_hash.is_some(), "default should produce a hash");
         assert!(
-            result.dropped_summary.contains("_koyote_pager"),
+            result.dropped_summary.contains("_truhowl_pager"),
             "default should produce a marker: {:?}",
             result.dropped_summary
         );

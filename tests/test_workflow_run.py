@@ -1,4 +1,4 @@
-"""Tests for `koyote workflow run <name>` (M5).
+"""Tests for `truhowl workflow run <name>` (M5).
 
 Covers dependency-ordered DAG execution, one Execution per node with its own
 compartment policy, dependency-failure skipping, cycle detection, and the
@@ -11,9 +11,9 @@ import textwrap
 
 import pytest
 
-from koyote.cli.main import _topo_sort, cmd_workflow_run
-from koyote.config import WorkflowNodeConfig
-from koyote.hooks.base import ExecutionResult
+from truhowl.cli.main import _topo_sort, cmd_workflow_run
+from truhowl.config import WorkflowNodeConfig
+from truhowl.hooks.base import ExecutionResult
 
 CONFIG_YAML = textwrap.dedent("""\
     compartments:
@@ -73,8 +73,8 @@ class _FakeRunner:
 
 @pytest.fixture
 def ws(tmp_path, monkeypatch):
-    (tmp_path / ".koyote").mkdir()
-    (tmp_path / ".koyote" / "config.yaml").write_text(CONFIG_YAML, encoding="utf-8")
+    (tmp_path / ".truhowl").mkdir()
+    (tmp_path / ".truhowl" / "config.yaml").write_text(CONFIG_YAML, encoding="utf-8")
     monkeypatch.chdir(tmp_path)
     return tmp_path
 
@@ -83,12 +83,12 @@ def ws(tmp_path, monkeypatch):
 def fake_runner(monkeypatch):
     _FakeRunner.instances = []
     _FakeRunner.fail_commands = set()
-    monkeypatch.setattr("koyote.cli.main.SandboxRunner", _FakeRunner)
+    monkeypatch.setattr("truhowl.cli.main.SandboxRunner", _FakeRunner)
     return _FakeRunner
 
 
 def _load_executions(ws) -> list[dict]:
-    exec_dir = os.path.join(str(ws), ".koyote", "executions")
+    exec_dir = os.path.join(str(ws), ".truhowl", "executions")
     records = []
     if os.path.isdir(exec_dir):
         for fname in sorted(os.listdir(exec_dir)):
@@ -124,7 +124,7 @@ def test_workflow_run_declared_dag(ws, fake_runner, capsys):
     assert exc.value.code == 0
 
     out = capsys.readouterr().out
-    assert "KOYOTE WORKFLOW: feature-development" in out
+    assert "TRUHOWL WORKFLOW: feature-development" in out
     assert "3 node(s)" in out
 
     order = [i.called_with["command"] for i in _FakeRunner.instances]
@@ -179,7 +179,7 @@ def test_workflow_run_unknown_name(ws, capsys):
 
 
 def test_workflow_run_unknown_compartment(ws, capsys):
-    config_path = ws / ".koyote" / "config.yaml"
+    config_path = ws / ".truhowl" / "config.yaml"
     config_path.write_text(CONFIG_YAML + textwrap.dedent("""\
         workflows:
           broken:
@@ -199,7 +199,7 @@ def test_workflow_run_unknown_compartment(ws, capsys):
 
 
 def test_workflow_run_cycle_detected(ws, capsys):
-    config_path = ws / ".koyote" / "config.yaml"
+    config_path = ws / ".truhowl" / "config.yaml"
     config_path.write_text(CONFIG_YAML + textwrap.dedent("""\
         workflows:
           cyclic:
@@ -235,5 +235,5 @@ def test_workflow_run_file_fallback(ws, fake_runner, capsys):
     assert records[0]["kind"] == "WORKFLOW"
     assert records[0]["status"] == "COMPLETED"
 
-    sessions = list((ws / ".koyote" / "sessions").glob("*.json"))
+    sessions = list((ws / ".truhowl" / "sessions").glob("*.json"))
     assert len(sessions) == 1

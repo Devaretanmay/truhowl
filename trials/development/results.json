@@ -1,0 +1,29 @@
+{
+  "label": "DEVELOPMENT CASES \u2014 not held-out benchmark evidence",
+  "records": [
+    {
+      "case": "sentry_hub",
+      "label": "DEVELOPMENT CASE",
+      "author": "llm",
+      "outcome": "REFUSED",
+      "detail": "hard timeout after 180s",
+      "classification": {
+        "category": "MODEL_RATE_LIMIT",
+        "detail": "provider retries exhausted the case budget before a candidate was sealed"
+      },
+      "duration_s": 180.0
+    },
+    {
+      "case": "uploadthing_clerk",
+      "label": "DEVELOPMENT CASE",
+      "author": "llm",
+      "outcome": "REFUSED",
+      "detail": "hard timeout after 180s",
+      "classification": {
+        "category": "MODEL_RATE_LIMIT",
+        "detail": "provider retries exhausted the case budget before a candidate was sealed"
+      },
+      "duration_s": 180.0
+    }
+  ]
+}

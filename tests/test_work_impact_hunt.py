@@ -1,4 +1,4 @@
-# Copyright 2026 Koyote Authors
+# Copyright 2026 Truhowl Authors
 # SPDX-License-Identifier: Apache-2.0
 """Phase 4: explicit opt-in Hunt repair. Gated, verified, never automatic."""
 
@@ -6,13 +6,13 @@ import json
 import os
 import subprocess
 
-from koyote import cross_repo, work_graph
-from koyote.github.provisioning import cached_path
-from koyote.github.push_events import parse_push_payload
-from koyote.github.pr_bot import handle_push_event
-from koyote.knowledge import lookup
-from koyote.patch_writer import PatchResult
-from koyote.repo_identity import STATE_ACTIVE, register_repository, set_bot_state
+from truhowl import cross_repo, work_graph
+from truhowl.github.provisioning import cached_path
+from truhowl.github.push_events import parse_push_payload
+from truhowl.github.pr_bot import handle_push_event
+from truhowl.knowledge import lookup
+from truhowl.patch_writer import PatchResult
+from truhowl.repo_identity import STATE_ACTIVE, register_repository, set_bot_state
 
 
 class AssessStub:
@@ -54,11 +54,11 @@ class FakeClient:
 
 
 def _env(tmp_path, monkeypatch):
-    monkeypatch.setenv("KOYOTE_WORK_GRAPH_FILE", str(tmp_path / "wg.json"))
-    monkeypatch.setenv("KOYOTE_INSTALLATIONS_DIR", str(tmp_path / "installs"))
-    monkeypatch.setenv("KOYOTE_REPOS_DIR", str(tmp_path / "repos"))
-    monkeypatch.setenv("KOYOTE_DIR", str(tmp_path / "koyote_home"))
-    for d in ("installs", "repos", "koyote_home"):
+    monkeypatch.setenv("TRUHOWL_WORK_GRAPH_FILE", str(tmp_path / "wg.json"))
+    monkeypatch.setenv("TRUHOWL_INSTALLATIONS_DIR", str(tmp_path / "installs"))
+    monkeypatch.setenv("TRUHOWL_REPOS_DIR", str(tmp_path / "repos"))
+    monkeypatch.setenv("TRUHOWL_DIR", str(tmp_path / "truhowl_home"))
+    for d in ("installs", "repos", "truhowl_home"):
         os.makedirs(os.path.join(str(tmp_path), d), exist_ok=True)
 
 
@@ -70,7 +70,7 @@ def _raw_push(repo, branch, after, files=("src/api.ts",)):
 
 def _notified(tmp_path, monkeypatch):
     _env(tmp_path, monkeypatch)
-    with open(os.path.join(os.environ["KOYOTE_INSTALLATIONS_DIR"], "1.json"), "w") as f:
+    with open(os.path.join(os.environ["TRUHOWL_INSTALLATIONS_DIR"], "1.json"), "w") as f:
         json.dump({"installation_id": "1", "repos": {
             "acme/api-service": {"state": "READY"},
             "acme/admin": {"state": "READY"}}}, f)
@@ -119,8 +119,8 @@ def test_green_repair_opens_pr_on_affected_branch(tmp_path, monkeypatch):
     res = cross_repo.request_hunt_repair(
         "acme/api-service", "feature/payments", "acme/admin", "feature/work",
         client, planner=RepairStub())
-    assert res["hunt"] is True and res["branch"] == "koyote/work-impact-api-service"
-    assert pushed == ["koyote/work-impact-api-service"]
+    assert res["hunt"] is True and res["branch"] == "truhowl/work-impact-api-service"
+    assert pushed == ["truhowl/work-impact-api-service"]
     assert len(client.prs) == 1
     pr = client.prs[0]
     assert pr["base"] == "feature/work"  # PR targets the affected work, not main

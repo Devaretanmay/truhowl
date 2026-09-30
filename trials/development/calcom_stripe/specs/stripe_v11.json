@@ -1,0 +1,22 @@
+{
+  "openapi": "3.0.0",
+  "info": { "title": "Stripe API", "version": "2022-11-15" },
+  "paths": {
+    "/v1/charges": {
+      "post": {
+        "operationId": "createCharge",
+        "parameters": [
+          { "name": "amount", "in": "query", "schema": { "type": "integer" } }
+        ]
+      }
+    },
+    "/v1/checkout/sessions": {
+      "post": {
+        "operationId": "createCheckoutSession",
+        "parameters": [
+          { "name": "payment_method_types", "in": "query", "schema": { "type": "array" } }
+        ]
+      }
+    }
+  }
+}

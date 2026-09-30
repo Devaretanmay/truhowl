@@ -108,9 +108,9 @@ pub fn locate_callsites_in_source(
 
         // Alias pass: proven `alias.` chains only; skips lines with a MethodCall hit.
         if !is_comment(trimmed) && !aliases.is_empty() {
-            let has_method_call = hits.iter().any(|c| {
-                c.line_number == line_number && c.kind == CallsiteKind::MethodCall
-            });
+            let has_method_call = hits
+                .iter()
+                .any(|c| c.line_number == line_number && c.kind == CallsiteKind::MethodCall);
             if !has_method_call && !is_any_import_line(trimmed, config) {
                 for (alias, sdk) in &aliases {
                     if alias == sdk {
@@ -198,7 +198,10 @@ fn match_new_binding(line: &str, type_prefix: &str) -> Option<String> {
     let alias = alias.trim();
     let rest = rest.trim_start();
     let after_new = rest.strip_prefix("new ")?;
-    let constructor: String = after_new.chars().take_while(|c| c.is_alphanumeric() || *c == '_' || *c == '$').collect();
+    let constructor: String = after_new
+        .chars()
+        .take_while(|c| c.is_alphanumeric() || *c == '_' || *c == '$')
+        .collect();
     if constructor == type_prefix {
         return Some(alias.to_string());
     }
@@ -262,7 +265,10 @@ fn find_identifier_call(line: &str, needle: &str) -> Option<usize> {
 }
 
 fn is_any_import_line(trimmed: &str, config: &ScanConfig) -> bool {
-    config.sdk_names.iter().any(|sdk| is_import_line(trimmed, sdk))
+    config
+        .sdk_names
+        .iter()
+        .any(|sdk| is_import_line(trimmed, sdk))
 }
 
 /// Check if a line is an import/require statement referencing the given package.
@@ -316,7 +322,7 @@ const SKIP_DIRS: &[&str] = &[
     "build",
     "dist",
     ".next",
-    ".koyote",
+    ".truhowl",
     "vendor",
     ".mypy_cache",
     ".pytest_cache",
@@ -469,7 +475,7 @@ function processCharge(charge: Stripe.Charge): void {
             line_content: "x".into(),
             kind: CallsiteKind::Import,
             matched_pattern: "stripe".into(),
-                    alias: None,
+            alias: None,
         });
         result.callsites.push(Callsite {
             file_path: "b.ts".into(),
@@ -478,7 +484,7 @@ function processCharge(charge: Stripe.Charge): void {
             line_content: "y".into(),
             kind: CallsiteKind::MethodCall,
             matched_pattern: "charges.create".into(),
-                    alias: None,
+            alias: None,
         });
         result.callsites.push(Callsite {
             file_path: "a.ts".into(),
@@ -487,7 +493,7 @@ function processCharge(charge: Stripe.Charge): void {
             line_content: "z".into(),
             kind: CallsiteKind::MethodCall,
             matched_pattern: "charges.retrieve".into(),
-                    alias: None,
+            alias: None,
         });
         let files = result.affected_files();
         assert_eq!(files, vec!["a.ts", "b.ts"]);
@@ -496,7 +502,7 @@ function processCharge(charge: Stripe.Charge): void {
     #[test]
     fn ast_locate_callsites_in_temp_dir() {
         let dir = std::env::temp_dir().join(format!(
-            "koyote_ast_test_{}",
+            "truhowl_ast_test_{}",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
@@ -537,7 +543,11 @@ const sub = await s.subscriptions.del('sub_123');
             .iter()
             .filter(|c| c.kind == CallsiteKind::MethodCall && c.alias.as_deref() == Some("s"))
             .collect();
-        assert_eq!(aliased.len(), 1, "aliased client chain should be a callsite");
+        assert_eq!(
+            aliased.len(),
+            1,
+            "aliased client chain should be a callsite"
+        );
         assert_eq!(aliased[0].matched_pattern, "stripe");
         assert_eq!(aliased[0].line_number, 4);
     }
@@ -546,7 +556,10 @@ const sub = await s.subscriptions.del('sub_123');
     fn ast_detects_require_alias() {
         let source = "const s = require('stripe');\nconst x = s.subscriptions.del('sub_1');\n";
         let hits = locate_callsites_in_source("app.js", source, &stripe_config());
-        let aliased: Vec<_> = hits.iter().filter(|c| c.alias.as_deref() == Some("s")).collect();
+        let aliased: Vec<_> = hits
+            .iter()
+            .filter(|c| c.alias.as_deref() == Some("s"))
+            .collect();
         assert_eq!(aliased.len(), 1);
         assert_eq!(aliased[0].matched_pattern, "stripe");
     }
@@ -562,7 +575,8 @@ const sub = await s.subscriptions.del('sub_123');
 
     #[test]
     fn ast_alias_does_not_double_emit_canonical_line() {
-        let source = "const stripe = new Stripe(key);\nconst c = await stripe.charges.create({});\n";
+        let source =
+            "const stripe = new Stripe(key);\nconst c = await stripe.charges.create({});\n";
         let hits = locate_callsites_in_source("b.ts", source, &stripe_config());
         let method_calls: Vec<_> = hits
             .iter()
@@ -586,7 +600,9 @@ const sub = await s.subscriptions.del('sub_123');
         let source = "// s.subscriptions.del is old\nconst s = new Stripe(k);\nconst vals = infos.map(x => x);\n";
         let hits = locate_callsites_in_source("c.ts", source, &stripe_config());
         assert!(!hits.iter().any(|c| c.line_number == 1 && c.alias.is_some()));
-        assert!(!hits.iter().any(|c| c.alias.is_some() && c.line_content.contains("infos")));
+        assert!(!hits
+            .iter()
+            .any(|c| c.alias.is_some() && c.line_content.contains("infos")));
     }
 
     #[test]

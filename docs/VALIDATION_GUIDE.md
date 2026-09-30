@@ -1,6 +1,6 @@
-# Product Validation Guide: Testing Koyote Migrations
+# Product Validation Guide: Testing Truhowl Migrations
 
-This guide provides a structured protocol for validating Koyote as the autonomous SDK/API migration engine for your codebase.
+This guide provides a structured protocol for validating Truhowl as the autonomous SDK/API migration engine for your codebase.
 
 ---
 
@@ -10,8 +10,8 @@ This guide provides a structured protocol for validating Koyote as the autonomou
 CONVENTIONAL DEPENDENCY BUMP
 Dependabot / Renovate -> Version bumped in lockfile -> CI breaks -> Human reads migration docs
 
-WITH KOYOTE
-Upstream API/SDK Drift -> Koyote (Check callsites -> Hunt repairs -> Sandbox verifies) -> Developer Trust PR
+WITH TRUHOWL
+Upstream API/SDK Drift -> Truhowl (Check callsites -> Hunt repairs -> Sandbox verifies) -> Developer Trust PR
 ```
 
 ---
@@ -21,8 +21,8 @@ Upstream API/SDK Drift -> Koyote (Check callsites -> Hunt repairs -> Sandbox ver
 Audit your entire codebase for upstream breaking changes, deprecated API callsites, and auto-repairable integrations without sending code to an LLM or modifying files.
 
 ```bash
-koyote check .
-koyote check . --format=github-issue
+truhowl check .
+truhowl check . --format=github-issue
 ```
 
 ### What You Observe:
@@ -38,7 +38,7 @@ koyote check . --format=github-issue
 Run deep diagnostic reasoning on detected contract drift without modifying source files.
 
 ```bash
-koyote consult .
+truhowl consult .
 ```
 
 ### What You Observe:
@@ -54,15 +54,15 @@ koyote consult .
 Execute a targeted repair starting from a specific finding ID, verified in an isolated workspace with your repository's real test suite.
 
 ```bash
-koyote check .                # Note the finding ID, e.g. stripe-df9562
-koyote hunt stripe-df9562     # Full reasoning -> repair -> sandbox -> verify cycle
+truhowl check .                # Note the finding ID, e.g. stripe-df9562
+truhowl hunt stripe-df9562     # Full reasoning -> repair -> sandbox -> verify cycle
 ```
 
 ### What You Observe:
 - Gathers live context: exact commit SHA, active branch, callsites, and test command.
-- Consults local semantic pattern memory (`.koyote/knowledge/`) for verified patterns and quarantined failure shapes.
+- Consults local semantic pattern memory (`.truhowl/knowledge/`) for verified patterns and quarantined failure shapes.
 - AI planner formulates surgical SEARCH/REPLACE edits (deterministic fixers never author code).
-- Provisions an isolated detached Git worktree (`.koyote/hunt/sandboxes/hunt-*`).
+- Provisions an isolated detached Git worktree (`.truhowl/hunt/sandboxes/hunt-*`).
 - Executes repository build and test commands with strict timeouts.
 - Evaluates scope boundaries: touching unapproved files fails closed immediately.
 - On green tests (exit code 0), mints a sealed `VerifiedRepair` capability token, commits with RFC-5322 metadata trailers, and delivers a Developer Trust PR.
@@ -74,10 +74,10 @@ koyote hunt stripe-df9562     # Full reasoning -> repair -> sandbox -> verify cy
 Verify that unproven repairs or broken test runs never open a PR or leave corrupt state behind.
 
 ### What You Observe:
-- If tests fail or no test suite is configured, Koyote refuses loudly: *"Hunt could not safely verify this repair. No PR was created."*
+- If tests fail or no test suite is configured, Truhowl refuses loudly: *"Hunt could not safely verify this repair. No PR was created."*
 - Unverified changes are rolled back in 2ms using pre-execution BLAKE3 hash snapshots.
-- Failure evidence is recorded in `.koyote/knowledge/` avoid-lists to prevent repeating the failed repair pattern.
-- A detailed tamper-evident audit log is preserved at `.koyote/hunt/<id>/audit.json`.
+- Failure evidence is recorded in `.truhowl/knowledge/` avoid-lists to prevent repeating the failed repair pattern.
+- A detailed tamper-evident audit log is preserved at `.truhowl/hunt/<id>/audit.json`.
 
 ---
 
@@ -85,4 +85,4 @@ Verify that unproven repairs or broken test runs never open a PR or leave corrup
 
 After running these validation scenarios on your codebase:
 
-> **"Would you merge a breaking SDK bump before Koyote proves the migration works?"**
+> **"Would you merge a breaking SDK bump before Truhowl proves the migration works?"**

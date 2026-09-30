@@ -1,13 +1,13 @@
-# Copyright 2026 Koyote Authors
+# Copyright 2026 Truhowl Authors
 # SPDX-License-Identifier: Apache-2.0
 """Tests for Consult (Howl) and Work (Hunt) mode boundaries."""
 
 import os
 import subprocess
 from unittest.mock import MagicMock, patch
-from koyote.github.howl_bot import HowlBot, ConsultBot
-from koyote.github.hunt_bot import HuntBot, WorkBot
-from koyote.pipeline import (
+from truhowl.github.howl_bot import HowlBot, ConsultBot
+from truhowl.github.hunt_bot import HuntBot, WorkBot
+from truhowl.pipeline import (
     AnalysisResult,
     DriftFinding,
     PipelinePolicy,
@@ -18,8 +18,8 @@ from koyote.pipeline import (
 
 def _init_git_repo(path: str) -> None:
     subprocess.run(["git", "init", "-b", "main"], cwd=path, check=True, capture_output=True)
-    subprocess.run(["git", "config", "user.name", "Koyote Test"], cwd=path, check=True, capture_output=True)
-    subprocess.run(["git", "config", "user.email", "test@koyote.dev"], cwd=path, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.name", "Truhowl Test"], cwd=path, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.email", "test@truhowl.dev"], cwd=path, check=True, capture_output=True)
 
 
 def test_consult_creates_github_issue_and_never_modifies_files(tmp_path):
@@ -70,9 +70,9 @@ def test_consult_creates_github_issue_and_never_modifies_files(tmp_path):
         "confidence": "high",
     }
 
-    with patch("koyote.github.howl_bot.analyze_trigger_context", return_value=analysis), \
-         patch("koyote.github.howl_bot.has_valid_credentials", return_value=True), \
-         patch("koyote.github.howl_bot.AIPatchPlanner.from_env", return_value=mock_planner):
+    with patch("truhowl.github.howl_bot.analyze_trigger_context", return_value=analysis), \
+         patch("truhowl.github.howl_bot.has_valid_credentials", return_value=True), \
+         patch("truhowl.github.howl_bot.AIPatchPlanner.from_env", return_value=mock_planner):
         res = consult.consult(ctx)
 
     assert res["success"] is True
@@ -86,7 +86,7 @@ def test_consult_creates_github_issue_and_never_modifies_files(tmp_path):
     client.create_issue.assert_called_once()
     call_args = client.create_issue.call_args[1]
     assert call_args["repo"] == "acme/service"
-    assert "[Koyote Consult]" in call_args["title"]
+    assert "[Truhowl Consult]" in call_args["title"]
     assert "No code was modified" in call_args["body"]
     assert "What changed" in call_args["body"]
     assert "Action:" in call_args["body"]
@@ -143,9 +143,9 @@ def test_consult_interactive_pr_explains_without_touching_files(tmp_path):
         "confidence": "high",
     }
 
-    with patch("koyote.github.howl_bot.analyze_trigger_context", return_value=analysis), \
-         patch("koyote.github.howl_bot.has_valid_credentials", return_value=True), \
-         patch("koyote.github.howl_bot.AIPatchPlanner.from_env", return_value=mock_planner):
+    with patch("truhowl.github.howl_bot.analyze_trigger_context", return_value=analysis), \
+         patch("truhowl.github.howl_bot.has_valid_credentials", return_value=True), \
+         patch("truhowl.github.howl_bot.AIPatchPlanner.from_env", return_value=mock_planner):
         res = howl.explain_pull_request(ctx)
 
     assert res["success"] is True
@@ -194,14 +194,14 @@ def test_work_bot_delivers_verified_pr(tmp_path):
         context=ctx,
         analysis=MagicMock(test_command="pytest", test_exit_code=0),
         status="verified_fix",
-        status_description="Koyote: verified against test suite",
+        status_description="Truhowl: verified against test suite",
         committed=True,
         commit_url="https://github.com/acme/service/commit/12345",
         pr_url="https://github.com/acme/service/pull/99",
         comment_body="Verified PR opened",
     )
 
-    with patch("koyote.github.hunt_bot.MaintenancePipeline.run", return_value=mock_result):
+    with patch("truhowl.github.hunt_bot.MaintenancePipeline.run", return_value=mock_result):
         res = work_bot.execute_repair(ctx)
 
     assert res["success"] is True

@@ -1,4 +1,4 @@
-"""Full E2E test suite for compartment-centric Koyote."""
+"""Full E2E test suite for compartment-centric Truhowl."""
 
 import os
 import shutil
@@ -7,17 +7,17 @@ import tempfile
 import unittest
 import uuid
 
-from koyote import Koyote
-from koyote.compartments import Compartment, CompartmentConfig
-from koyote.sandbox.task_profile import classify
-from koyote.engine.tracer import Tracer
+from truhowl import Truhowl
+from truhowl.compartments import Compartment, CompartmentConfig
+from truhowl.sandbox.task_profile import classify
+from truhowl.engine.tracer import Tracer
 
 def _make_repo(path: str):
     os.makedirs(path, exist_ok=True)
     subprocess.run(["git", "init"], cwd=path, capture_output=True)
-    subprocess.run(["git", "config", "user.email", "test@koyote.test"],
+    subprocess.run(["git", "config", "user.email", "test@truhowl.test"],
                    cwd=path, capture_output=True)
-    subprocess.run(["git", "config", "user.name", "Koyote Test"],
+    subprocess.run(["git", "config", "user.name", "Truhowl Test"],
                    cwd=path, capture_output=True)
     readme = os.path.join(path, "README.md")
     with open(readme, "w") as f:
@@ -50,7 +50,7 @@ class TestSingleCompartment(unittest.TestCase):
     """Test 1 - The simplest possible execution. Verify every lifecycle phase."""
 
     def setUp(self):
-        self.tmpdir = os.path.join(tempfile.gettempdir(), f"koyote_test1_{uuid.uuid4().hex[:8]}")
+        self.tmpdir = os.path.join(tempfile.gettempdir(), f"truhowl_test1_{uuid.uuid4().hex[:8]}")
         _make_repo(self.tmpdir)
 
     def tearDown(self):
@@ -58,7 +58,7 @@ class TestSingleCompartment(unittest.TestCase):
 
     def test_basic_lifecycle_executes(self):
         """Outer compartment, Compartment, Cleanup, Destroy."""
-        box = Koyote(workdir=self.tmpdir)
+        box = Truhowl(workdir=self.tmpdir)
         self.assertEqual(box._box.state, "created")
 
         box._box.enter(block_network=False, sandbox=False)
@@ -77,7 +77,7 @@ class TestSingleCompartment(unittest.TestCase):
 
     def test_single_compartment_runs(self):
         """A single compartment should run and return its result."""
-        box = Koyote(workdir=self.tmpdir)
+        box = Truhowl(workdir=self.tmpdir)
         box.add(_comp("greeter", {"message": "Hello, World!"}))
         result = box.run()
         self.assertEqual(result.status, "success")
@@ -87,7 +87,7 @@ class TestSingleCompartment(unittest.TestCase):
     def test_tracer_outputs_lifecycle(self):
         """Execution trace should record every phase."""
         tracer = Tracer("test_tracer", verbose=True)
-        box = Koyote(workdir=self.tmpdir, verbose=True)
+        box = Truhowl(workdir=self.tmpdir, verbose=True)
 
         tracer.emit("box.created", box_id=box.box_id)
         box._box.enter(block_network=False, sandbox=False)
@@ -106,7 +106,7 @@ class TestPolicyIsolation(unittest.TestCase):
     """Test 2 - Each compartment has its own permission set."""
 
     def setUp(self):
-        self.tmpdir = os.path.join(tempfile.gettempdir(), f"koyote_test2_{uuid.uuid4().hex[:8]}")
+        self.tmpdir = os.path.join(tempfile.gettempdir(), f"truhowl_test2_{uuid.uuid4().hex[:8]}")
         _make_repo(self.tmpdir)
 
     def tearDown(self):
@@ -114,7 +114,7 @@ class TestPolicyIsolation(unittest.TestCase):
 
     def test_different_permissions_per_compartment(self):
         """Two compartments in the same Box should have different policies."""
-        box = Koyote(workdir=self.tmpdir)
+        box = Truhowl(workdir=self.tmpdir)
         box.add(Compartment(
             name="reader",
             fn=lambda ctx: {"policy": ctx.config.permissions},
@@ -137,7 +137,7 @@ class TestPolicyIsolation(unittest.TestCase):
 
     def test_policy_applied_to_box_before_run(self):
         """Box.apply_policy should be called before each compartment runs."""
-        box = Koyote(workdir=self.tmpdir)
+        box = Truhowl(workdir=self.tmpdir)
         tracked = []
 
         def tracker_fn(ctx):
@@ -170,7 +170,7 @@ class TestMultiCompartmentPipeline(unittest.TestCase):
     """Test 3 - Compartments compose into pipelines via message passing."""
 
     def setUp(self):
-        self.tmpdir = os.path.join(tempfile.gettempdir(), f"koyote_test3_{uuid.uuid4().hex[:8]}")
+        self.tmpdir = os.path.join(tempfile.gettempdir(), f"truhowl_test3_{uuid.uuid4().hex[:8]}")
         _make_repo(self.tmpdir)
 
     def tearDown(self):
@@ -190,7 +190,7 @@ class TestMultiCompartmentPipeline(unittest.TestCase):
         def c(ctx):
             return {"step": "c_done", "received": ctx.messages[0].data if ctx.messages else None}
 
-        box = Koyote(workdir=self.tmpdir)
+        box = Truhowl(workdir=self.tmpdir)
         box.add(_stateful_comp("a", a))
         box.add(_stateful_comp("b", b))
         box.add(_stateful_comp("c", c))
@@ -212,7 +212,7 @@ class TestMultiCompartmentPipeline(unittest.TestCase):
                 return {"order": len(order)}
             return fn
 
-        box = Koyote(workdir=self.tmpdir)
+        box = Truhowl(workdir=self.tmpdir)
         box.add(_stateful_comp("alpha", tracker("alpha")))
         box.add(_stateful_comp("beta", tracker("beta")))
         box.add(_stateful_comp("gamma", tracker("gamma")))
@@ -224,7 +224,7 @@ class TestLongWorkflow(unittest.TestCase):
     """Test 4 - Box stability, insulation adaptation over time."""
 
     def setUp(self):
-        self.tmpdir = os.path.join(tempfile.gettempdir(), f"koyote_test4_{uuid.uuid4().hex[:8]}")
+        self.tmpdir = os.path.join(tempfile.gettempdir(), f"truhowl_test4_{uuid.uuid4().hex[:8]}")
         _make_repo(self.tmpdir)
 
     def tearDown(self):
@@ -233,7 +233,7 @@ class TestLongWorkflow(unittest.TestCase):
     def test_box_stable_over_multiple_runs(self):
         """Box should handle multiple sequential runs without degradation."""
         for i in range(5):
-            box = Koyote(workdir=self.tmpdir)
+            box = Truhowl(workdir=self.tmpdir)
             box._box.enter(block_network=False, sandbox=False)
             self.assertTrue(box._box.is_active)
             self.assertGreaterEqual(box._box.elapsed_s, 0)
@@ -244,7 +244,7 @@ class TestLongWorkflow(unittest.TestCase):
         """The box should load different profiles for different tasks."""
         profiles_seen = []
         for request in ["Refactor X", "Fix Y", "Explore Z"]:
-            box = Koyote(workdir=self.tmpdir)
+            box = Truhowl(workdir=self.tmpdir)
             box._box.enter(block_network=False, sandbox=False)
             box._box.insulate(request)
             profiles_seen.append(box._box.task_profile)
@@ -254,10 +254,10 @@ class TestLongWorkflow(unittest.TestCase):
         self.assertIn("debugging", profiles_seen)
         self.assertIn("research", profiles_seen)
 
-    def test_multiple_runs_via_koyote(self):
-        """Using Koyote.run() multiple times with different compartments."""
+    def test_multiple_runs_via_truhowl(self):
+        """Using Truhowl.run() multiple times with different compartments."""
         for name in ["build", "test", "deploy"]:
-            box = Koyote(workdir=self.tmpdir)
+            box = Truhowl(workdir=self.tmpdir)
             box.add(_comp(name, {"task": name}))
             result = box.run()
             self.assertEqual(result.status, "success")
@@ -267,7 +267,7 @@ class TestFailureRecovery(unittest.TestCase):
     """Test 5 - Compartment errors, box health after failure, cleanup."""
 
     def setUp(self):
-        self.tmpdir = os.path.join(tempfile.gettempdir(), f"koyote_test5_{uuid.uuid4().hex[:8]}")
+        self.tmpdir = os.path.join(tempfile.gettempdir(), f"truhowl_test5_{uuid.uuid4().hex[:8]}")
         _make_repo(self.tmpdir)
 
     def tearDown(self):
@@ -275,13 +275,13 @@ class TestFailureRecovery(unittest.TestCase):
 
     def test_missing_compartment_raises(self):
         """Running without compartments should raise."""
-        box = Koyote(workdir=self.tmpdir)
+        box = Truhowl(workdir=self.tmpdir)
         with self.assertRaises(RuntimeError):
             box.run()
 
     def test_failing_compartment_does_not_break_box(self):
         """A compartment that raises should be caught, not crash the runtime."""
-        box = Koyote(workdir=self.tmpdir)
+        box = Truhowl(workdir=self.tmpdir)
         box.add(Compartment(
             name="failing",
             fn=lambda ctx: (_ for _ in ()).throw(ValueError("boom")),
@@ -293,7 +293,7 @@ class TestFailureRecovery(unittest.TestCase):
 
     def test_box_healthy_after_error(self):
         """Box must be properly destroyed even when a compartment fails."""
-        box = Koyote(workdir=self.tmpdir)
+        box = Truhowl(workdir=self.tmpdir)
         box.add(Compartment(
             name="crash",
             fn=lambda ctx: 1 / 0,
@@ -305,7 +305,7 @@ class TestFailureRecovery(unittest.TestCase):
 
     def test_cleanup_always_runs(self):
         """Cleanup (box.release + box.exit) must run even with mid-execution errors."""
-        box = Koyote(workdir=self.tmpdir)
+        box = Truhowl(workdir=self.tmpdir)
         try:
             box._box.enter(block_network=False, sandbox=False)
             box._box.insulate("test")
@@ -322,7 +322,7 @@ class TestNoAgentBehavior(unittest.TestCase):
     """Test 6 - The runtime works identically without any AI agent."""
 
     def setUp(self):
-        self.tmpdir = os.path.join(tempfile.gettempdir(), f"koyote_test6_{uuid.uuid4().hex[:8]}")
+        self.tmpdir = os.path.join(tempfile.gettempdir(), f"truhowl_test6_{uuid.uuid4().hex[:8]}")
         _make_repo(self.tmpdir)
 
     def tearDown(self):
@@ -330,7 +330,7 @@ class TestNoAgentBehavior(unittest.TestCase):
 
     def test_runtime_works_without_agent(self):
         """Without an agent, compartments just run their functions."""
-        box = Koyote(workdir=self.tmpdir)
+        box = Truhowl(workdir=self.tmpdir)
         box.add(_comp("analyze", {"findings": "no issues"}))
         result = box.run()
         self.assertEqual(result.status, "success")
@@ -341,33 +341,33 @@ class TestNoAgentBehavior(unittest.TestCase):
             box.add(_comp("step", {"value": 42}))
             return box.run()
 
-        a = build_result(Koyote(workdir=self.tmpdir))
-        b = build_result(Koyote(workdir=self.tmpdir))
+        a = build_result(Truhowl(workdir=self.tmpdir))
+        b = build_result(Truhowl(workdir=self.tmpdir))
 
         self.assertEqual(type(a), type(b))
         self.assertEqual(a.status, b.status)
 
 class TestParallelSessions(unittest.TestCase):
-    """Test 7 - Multiple independent Koyotees should coexist."""
+    """Test 7 - Multiple independent Truhowles should coexist."""
 
     def setUp(self):
-        self.tmpdir = os.path.join(tempfile.gettempdir(), f"koyote_test7_{uuid.uuid4().hex[:8]}")
+        self.tmpdir = os.path.join(tempfile.gettempdir(), f"truhowl_test7_{uuid.uuid4().hex[:8]}")
         _make_repo(self.tmpdir)
 
     def tearDown(self):
         shutil.rmtree(self.tmpdir, ignore_errors=True)
 
     def test_two_boxes_are_independent(self):
-        """Two Koyote instances must have different IDs and directories."""
-        a = Koyote(workdir=self.tmpdir)
-        b = Koyote(workdir=self.tmpdir)
+        """Two Truhowl instances must have different IDs and directories."""
+        a = Truhowl(workdir=self.tmpdir)
+        b = Truhowl(workdir=self.tmpdir)
         self.assertNotEqual(a.box_id, b.box_id)
         self.assertNotEqual(a.box_dir, b.box_dir)
 
     def test_concurrent_boxes_dont_interfere(self):
         """Simultaneous boxes should maintain separate state."""
-        a = Koyote(workdir=self.tmpdir)
-        b = Koyote(workdir=self.tmpdir)
+        a = Truhowl(workdir=self.tmpdir)
+        b = Truhowl(workdir=self.tmpdir)
 
         a._box.enter(block_network=False, sandbox=False)
         b._box.enter(block_network=False, sandbox=False)
@@ -391,8 +391,8 @@ class TestParallelSessions(unittest.TestCase):
 
     def test_three_boxes_branch_like_structure(self):
         """Branching structure: Main, then sessions A, B, C."""
-        main = Koyote(workdir=self.tmpdir)
-        branches = [Koyote(workdir=self.tmpdir) for _ in range(3)]
+        main = Truhowl(workdir=self.tmpdir)
+        branches = [Truhowl(workdir=self.tmpdir) for _ in range(3)]
 
         ids = [b.box_id for b in branches]
         self.assertEqual(len(ids), len(set(ids)), "All branch IDs must be unique")
@@ -408,13 +408,13 @@ class TestParallelSessions(unittest.TestCase):
             self.assertEqual(bx._box.state, "destroyed")
 
 class TestSelfDogfooding(unittest.TestCase):
-    """Test 8 - Koyote can analyze and improve its own codebase."""
+    """Test 8 - Truhowl can analyze and improve its own codebase."""
 
     def setUp(self):
-        self.tmpdir = os.path.join(tempfile.gettempdir(), f"koyote_test8_{uuid.uuid4().hex[:8]}")
+        self.tmpdir = os.path.join(tempfile.gettempdir(), f"truhowl_test8_{uuid.uuid4().hex[:8]}")
         _make_repo(self.tmpdir)
         src = os.path.join(os.path.dirname(__file__), "..", "python",
-                           "koyote", "engine", "tracer.py")
+                           "truhowl", "engine", "tracer.py")
         dst = os.path.join(self.tmpdir, "tracer.py")
         if os.path.exists(src):
             shutil.copy2(src, dst)
@@ -430,7 +430,7 @@ class TestSelfDogfooding(unittest.TestCase):
         shutil.rmtree(self.tmpdir, ignore_errors=True)
 
     def test_can_analyze_own_codebase(self):
-        """Koyote should be able to analyze files in its workdir."""
+        """Truhowl should be able to analyze files in its workdir."""
         # Write a known file so the test doesn't depend on setUp file copies
         known_path = os.path.join(self.tmpdir, "sample.py")
         with open(known_path, "w") as f:
@@ -444,7 +444,7 @@ class TestSelfDogfooding(unittest.TestCase):
                 return {"analyzed": True, "lines": len(content.splitlines())}
             return {"analyzed": False}
 
-        box = Koyote(workdir=self.tmpdir)
+        box = Truhowl(workdir=self.tmpdir)
         box.add(Compartment(
             name="analyzer", fn=analysis,
             config=CompartmentConfig(permissions=["fs_read"]),
@@ -455,12 +455,12 @@ class TestSelfDogfooding(unittest.TestCase):
         self.assertEqual(result.output.get("analyzer", {}).get("lines"), 2)
 
     def test_can_use_runtime_programmatically(self):
-        """Koyote API should be usable in a programmatic loop."""
+        """Truhowl API should be usable in a programmatic loop."""
         improvements = []
         for i in range(3):
             def builder(i=i):
                 return {"iteration": i, "improvement": f"improvement_{i}"}
-            box = Koyote(workdir=self.tmpdir)
+            box = Truhowl(workdir=self.tmpdir)
             box.add(_comp(f"improve_{i}", builder()))
             result = box.run()
             if result.status == "success":
@@ -470,7 +470,7 @@ class TestSelfDogfooding(unittest.TestCase):
 
     def test_runtime_can_self_reflect(self):
         """Runtime should be able to report its own state and configuration."""
-        box = Koyote(workdir=self.tmpdir)
+        box = Truhowl(workdir=self.tmpdir)
         self.assertEqual(box.workdir, os.path.abspath(self.tmpdir))
         self.assertEqual(box._box.state, "created")
         box.add(_comp("reflect", {"workdir": box.workdir}))

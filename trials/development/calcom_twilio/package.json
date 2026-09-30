@@ -1,0 +1,6 @@
+{
+  "name": "calcom-twilio-fixture",
+  "dependencies": {
+    "twilio": "^3.85.0"
+  }
+}

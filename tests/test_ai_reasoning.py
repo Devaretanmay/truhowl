@@ -1,16 +1,16 @@
-# Copyright 2026 Koyote Authors
+# Copyright 2026 Truhowl Authors
 # SPDX-License-Identifier: Apache-2.0
 """AI-first reasoning: deep context assembly and hybrid escalation."""
 
 import os
 from unittest.mock import MagicMock
 
-from koyote.ai_planner import (
+from truhowl.ai_planner import (
     AIPatchPlanner, MAX_PROMPT_FILE_CHARS, bound_file_content, build_reasoning_context,
 )
-from koyote.knowledge import upsert_learned, record_failure
-from koyote.llm import LLMClient, LLMResponse
-import koyote.maintenance as mnt
+from truhowl.knowledge import upsert_learned, record_failure
+from truhowl.llm import LLMClient, LLMResponse
+import truhowl.maintenance as mnt
 
 
 def _seed_repo(dst: str):
@@ -113,7 +113,7 @@ def test_ai_repair_completion_for_untouched_files(tmp_path, monkeypatch):
     monkeypatch.setattr(mnt.AIPatchPlanner, "from_env",
                         classmethod(lambda cls, **k: AIPatchPlanner(client=mock_client)))
     monkeypatch.setenv("GROQ_API_KEY", "gsk_test123")
-    monkeypatch.setenv("KOYOTE_CREDENTIALS_FILE", str(tmp_path / "none.json"))
+    monkeypatch.setenv("TRUHOWL_CREDENTIALS_FILE", str(tmp_path / "none.json"))
 
     report = mnt.run_maintenance_cycle(dst, "stripe", from_version="11.18.0", to_version="13.0.0")
     assert report.success

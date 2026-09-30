@@ -6,9 +6,9 @@ import subprocess
 import textwrap
 import pytest
 
-from koyote.engine.execution import ExecutionManager, ExecutionKind, ExecutionStatus
-from koyote.sandbox.snapshot import SnapshotManager
-from koyote.sandbox.enforcer import SandboxEnforcer
+from truhowl.engine.execution import ExecutionManager, ExecutionKind, ExecutionStatus
+from truhowl.sandbox.snapshot import SnapshotManager
+from truhowl.sandbox.enforcer import SandboxEnforcer
 
 
 class _Args:
@@ -41,10 +41,10 @@ agents:
 def workspace_env(tmp_path):
     ws = tmp_path / "hostile_test_workspace"
     ws.mkdir()
-    (ws / ".koyote").mkdir()
+    (ws / ".truhowl").mkdir()
     (ws / "src").mkdir()
     (ws / "src" / "app.py").write_text("INITIAL_CONTENT = True\n")
-    (ws / ".koyote" / "config.yaml").write_text(CONFIG_YAML, encoding="utf-8")
+    (ws / ".truhowl" / "config.yaml").write_text(CONFIG_YAML, encoding="utf-8")
     return ws
 
 
@@ -146,8 +146,8 @@ def test_concurrent_snapshot_isolation(workspace_env):
     ex1 = exec_mgr.create(kind=ExecutionKind.INTERACTIVE, compartment_id="builder", command=["echo", "1"])
     ex2 = exec_mgr.create(kind=ExecutionKind.INTERACTIVE, compartment_id="builder", command=["echo", "2"])
 
-    ex1.snapshot_dir = os.path.join(str(workspace_env), ".koyote", "snapshots", ex1.execution_id)
-    ex2.snapshot_dir = os.path.join(str(workspace_env), ".koyote", "snapshots", ex2.execution_id)
+    ex1.snapshot_dir = os.path.join(str(workspace_env), ".truhowl", "snapshots", ex1.execution_id)
+    ex2.snapshot_dir = os.path.join(str(workspace_env), ".truhowl", "snapshots", ex2.execution_id)
 
     assert ex1.execution_id != ex2.execution_id
     assert ex1.snapshot_dir != ex2.snapshot_dir
@@ -178,7 +178,7 @@ def test_agent_crash_recovery(workspace_env):
 
     exec_mgr = ExecutionManager(workdir=str(workspace_env))
     ex = exec_mgr.create(kind=ExecutionKind.INTERACTIVE, compartment_id="builder", command=["crash"])
-    ex.snapshot_dir = os.path.join(str(workspace_env), ".koyote", "snapshots", ex.execution_id)
+    ex.snapshot_dir = os.path.join(str(workspace_env), ".truhowl", "snapshots", ex.execution_id)
     snap = SnapshotManager(workdir=str(workspace_env), snapshot_dir=ex.snapshot_dir)
     snap.snapshot()
 

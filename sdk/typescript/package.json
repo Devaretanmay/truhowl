@@ -1,7 +1,7 @@
 {
-  "name": "@koyote/sdk",
+  "name": "@truhowl/sdk",
   "version": "1.1.3",
-  "description": "TypeScript SDK for Koyote - AST analysis, contract verification & kernel-isolated execution",
+  "description": "TypeScript SDK for Truhowl - AST analysis, contract verification & kernel-isolated execution",
   "main": "index.js",
   "types": "index.d.ts",
   "files": [
@@ -17,21 +17,21 @@
     "prepack": "npm run build:target"
   },
   "napi": {
-    "name": "koyote-native",
+    "name": "truhowl-native",
     "triples": {
       "defaults": true
     },
-    "binaryName": "koyote-native"
+    "binaryName": "truhowl-native"
   },
   "optionalDependencies": {
-    "@koyote/sdk-darwin-arm64": "1.0.4",
-    "@koyote/sdk-darwin-x64": "1.0.4"
+    "@truhowl/sdk-darwin-arm64": "1.0.4",
+    "@truhowl/sdk-darwin-x64": "1.0.4"
   },
   "engines": {
     "node": ">= 16.0.0"
   },
   "keywords": [
-    "koyote",
+    "truhowl",
     "sandbox",
     "kernel",
     "isolation",
@@ -44,14 +44,14 @@
     "compartment"
   ],
   "license": "Apache-2.0",
-  "author": "Koyote Labs (Devaretanmay) <tanmaydevare@gmail.com>",
+  "author": "Truhowl Labs (Devaretanmay) <tanmaydevare@gmail.com>",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Devaretanmay/Koyote.git"
+    "url": "https://github.com/Devaretanmay/truhowl.git"
   },
-  "homepage": "https://github.com/Devaretanmay/Koyote#readme",
+  "homepage": "https://github.com/Devaretanmay/truhowl#readme",
   "bugs": {
-    "url": "https://github.com/Devaretanmay/Koyote/issues"
+    "url": "https://github.com/Devaretanmay/truhowl/issues"
   },
   "devDependencies": {
     "@napi-rs/cli": "^2.18.0"

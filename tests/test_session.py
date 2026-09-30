@@ -3,7 +3,7 @@
 import shutil
 import tempfile
 
-from koyote.engine.session import AgentSession, SessionManager, SessionStatus
+from truhowl.engine.session import AgentSession, SessionManager, SessionStatus
 
 def test_agent_session_creation():
     session = AgentSession(
@@ -25,7 +25,7 @@ def test_agent_session_creation():
     assert len(session.diffs) == 1
 
     view = session.format_ascii_view()
-    assert "KOYOTE AGENT SESSION #sess_123" in view
+    assert "TRUHOWL AGENT SESSION #sess_123" in view
 
 
 def test_session_manager_lifecycle():

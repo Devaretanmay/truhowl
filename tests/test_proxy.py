@@ -6,7 +6,7 @@ import threading
 
 import pytest
 
-from koyote.sandbox.proxy import CredentialProxy, RouteConfig, _request_path
+from truhowl.sandbox.proxy import CredentialProxy, RouteConfig, _request_path
 
 
 class _CaptureUpstream(http.server.BaseHTTPRequestHandler):

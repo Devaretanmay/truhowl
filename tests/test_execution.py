@@ -3,7 +3,7 @@
 import shutil
 import tempfile
 
-from koyote.engine.execution import (
+from truhowl.engine.execution import (
     Execution, ExecutionManager, ExecutionKind, ExecutionStatus
 )
 

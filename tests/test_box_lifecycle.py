@@ -5,7 +5,7 @@ import shutil
 import tempfile
 import unittest
 from unittest.mock import patch
-from koyote.sandbox.box import Box
+from truhowl.sandbox.box import Box
 
 
 class TestBoxLifecycle(unittest.TestCase):
@@ -58,6 +58,6 @@ class TestBoxLifecycle(unittest.TestCase):
 
         def check_fn():
             return {"supported": "false", "platform": "test", "details": "unsupported"}
-        with patch("koyote.sandbox.box._get_core", return_value=(apply_fn, check_fn)):
+        with patch("truhowl.sandbox.box._get_core", return_value=(apply_fn, check_fn)):
             self.assertFalse(b.enter(sandbox=True))
         b.exit()

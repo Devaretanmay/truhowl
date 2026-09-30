@@ -1,4 +1,4 @@
-# Copyright 2026 Koyote Authors
+# Copyright 2026 Truhowl Authors
 # SPDX-License-Identifier: Apache-2.0
 """Tests for repository environment, compiler options, and import conventions extraction."""
 
@@ -8,7 +8,7 @@ import shutil
 import tempfile
 import unittest
 
-from koyote.env_context import (
+from truhowl.env_context import (
     analyze_import_styles,
     extract_package_json,
     extract_repo_environment,

@@ -1,4 +1,4 @@
-# Copyright 2026 Koyote Authors
+# Copyright 2026 Truhowl Authors
 # SPDX-License-Identifier: Apache-2.0
 """Secret redaction: nothing secret leaves toward the provider or audit."""
 
@@ -6,8 +6,8 @@ import json
 import urllib.request
 from unittest.mock import patch
 
-from koyote.llm import LLMClient, LLMConfig
-from koyote.redact import redact_record, redact_secrets
+from truhowl.llm import LLMClient, LLMConfig
+from truhowl.redact import redact_record, redact_secrets
 
 
 def test_redacts_provider_key_shapes():
@@ -97,7 +97,7 @@ def test_redact_record_scrubs_nested_audit_data():
 
 
 def test_write_audit_persists_no_secrets(tmp_path):
-    from koyote.hunt import write_audit
+    from truhowl.hunt import write_audit
 
     path = write_audit(str(tmp_path), "f1", {
         "final": "refused_unverified",

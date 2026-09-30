@@ -1,0 +1,1 @@
+{"openapi": "3.0.0", "info": {"title": "Twilio", "version": "1"}, "paths": {"/2010-04-01/Accounts/{AccountSid}/Messages.json": {"post": {"operationId": "createMessage", "parameters": [{"name": "api.ashburn.twilio.com", "in": "query", "schema": {"type": "string"}}]}}}}

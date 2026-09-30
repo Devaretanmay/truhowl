@@ -1,10 +1,10 @@
-# Contributing to Koyote
+# Contributing to Truhowl
 
-We welcome contributions to the Koyote source-available runtime!
+We welcome contributions to the Truhowl source-available runtime!
 
 ## Licensing & License Agreement
 
-By contributing to Koyote, you agree that your contributions will be licensed under the [Apache License 2.0](LICENSE), and to the terms of the [CLA](CLA.md).
+By contributing to Truhowl, you agree that your contributions will be licensed under the [Apache License 2.0](LICENSE), and to the terms of the [CLA](CLA.md).
 
 ## Development Setup
 

@@ -4,8 +4,8 @@ import tempfile
 import unittest
 from unittest.mock import MagicMock
 
-from koyote.ai_planner import AIPatchPlanner, parse_confidence, parse_search_replace_blocks
-from koyote.llm import LLMClient, LLMResponse
+from truhowl.ai_planner import AIPatchPlanner, parse_confidence, parse_search_replace_blocks
+from truhowl.llm import LLMClient, LLMResponse
 
 
 class TestAIPatchPlanner(unittest.TestCase):
@@ -101,7 +101,7 @@ class TestAIPatchPlanner(unittest.TestCase):
 
     def test_build_reasoning_context_extracts_environment(self):
         import json
-        from koyote.ai_planner import build_reasoning_context
+        from truhowl.ai_planner import build_reasoning_context
 
         with open(os.path.join(self.test_dir, "package.json"), "w") as f:
             json.dump({

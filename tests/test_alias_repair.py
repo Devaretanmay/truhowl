@@ -1,15 +1,15 @@
-# Copyright 2026 Koyote Authors
+# Copyright 2026 Truhowl Authors
 # SPDX-License-Identifier: Apache-2.0
 """Alias-aware repair: proven client aliases get precise rewrites, never loosened regex."""
 
 import json
 from unittest.mock import MagicMock
 
-from koyote.ai_planner import AIPatchPlanner
-from koyote.llm import LLMClient, LLMResponse
-from koyote.maintenance import run_maintenance_cycle
-from koyote.patch_writer import discover_aliases, instantiate_alias_rules
-from koyote.providers.registry import RewriteRule
+from truhowl.ai_planner import AIPatchPlanner
+from truhowl.llm import LLMClient, LLMResponse
+from truhowl.maintenance import run_maintenance_cycle
+from truhowl.patch_writer import discover_aliases, instantiate_alias_rules
+from truhowl.providers.registry import RewriteRule
 
 
 def test_instantiate_alias_rules_exact_identifier_only():
@@ -77,7 +77,7 @@ def test_aliased_client_repaired_end_to_end(tmp_path, monkeypatch):
         model="groq/llama-3.3-70b-versatile",
     )
     monkeypatch.setattr(
-        "koyote.maintenance.AIPatchPlanner.from_env",
+        "truhowl.maintenance.AIPatchPlanner.from_env",
         classmethod(lambda cls, **k: AIPatchPlanner(client=mock_client)),
     )
     report = run_maintenance_cycle(str(repo), "stripe", from_version="11.18.0", to_version="13.0.0")

@@ -1,4 +1,4 @@
-from koyote.maintenance_agents import analyze_impact
+from truhowl.maintenance_agents import analyze_impact
 
 
 def test_impact_analyst_dummy(tmp_path):

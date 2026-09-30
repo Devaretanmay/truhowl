@@ -1,0 +1,7 @@
+{
+  "name": "@langchain/openai-fixture",
+  "version": "0.0.130",
+  "dependencies": {
+    "openai": "^3.3.0"
+  }
+}

@@ -20,7 +20,8 @@ impl Default for BM25Scorer {
 impl BM25Scorer {
     pub fn compute_bm25(&self, term_freq: f64, doc_len: f64, idf: f64) -> f64 {
         let numerator = term_freq * (self.k1 + 1.0);
-        let denominator = term_freq + self.k1 * (1.0 - self.b + self.b * doc_len / self.avg_doc_len);
+        let denominator =
+            term_freq + self.k1 * (1.0 - self.b + self.b * doc_len / self.avg_doc_len);
         idf * numerator / denominator
     }
 

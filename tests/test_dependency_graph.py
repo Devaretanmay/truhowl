@@ -1,7 +1,7 @@
-# Copyright 2026 Koyote Authors
+# Copyright 2026 Truhowl Authors
 
-from koyote.graph import build_dependency_graph, audit_dependency_graph
-from koyote.audit import render_audit_cli, render_audit_github_issue, run_audit
+from truhowl.graph import build_dependency_graph, audit_dependency_graph
+from truhowl.audit import render_audit_cli, render_audit_github_issue, run_audit
 
 
 def test_build_dependency_graph_taxonomy():
@@ -28,11 +28,11 @@ def test_audit_dependency_graph_taxonomy():
 def test_render_audit_formats():
     summary = audit_dependency_graph("trials/fixtures/taxonomy_stripe")
     cli_out = render_audit_cli(summary)
-    assert "KOYOTE: EXTERNAL-CHANGE DEPENDENCY AUDIT" in cli_out
+    assert "TRUHOWL: EXTERNAL-CHANGE DEPENDENCY AUDIT" in cli_out
     assert "Stripe" in cli_out
     
     issue_out = render_audit_github_issue(summary)
-    assert "Koyote: External Dependency Map & Risk Register" in issue_out
+    assert "Truhowl: External Dependency Map & Risk Register" in issue_out
     assert "| **Stripe** |" in issue_out
 
 

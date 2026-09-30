@@ -25,7 +25,7 @@ def main():
 
     print("\n=== 2. RUNNING PYTHON TEST SUITE ===")
     env = dict(os.environ)
-    has_local_core = os.path.exists("python/koyote") and any(f.startswith("_core") for f in os.listdir("python/koyote"))
+    has_local_core = os.path.exists("python/truhowl") and any(f.startswith("_core") for f in os.listdir("python/truhowl"))
     if has_local_core:
         env["PYTHONPATH"] = os.path.abspath("python")
     res_py = subprocess.run(["pytest", "tests/", "-q"], capture_output=True, text=True, env=env)

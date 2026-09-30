@@ -1,4 +1,4 @@
-# Copyright 2026 Koyote Authors
+# Copyright 2026 Truhowl Authors
 # SPDX-License-Identifier: Apache-2.0
 """Regression tests attacking the Clean-Room Replay and Attempt Isolation invariants.
 
@@ -17,26 +17,26 @@ from types import SimpleNamespace
 
 import pytest
 
-from koyote import hunt as hunt_agent
-from koyote.hunt import (
+from truhowl import hunt as hunt_agent
+from truhowl.hunt import (
     HuntInterpretation,
     VerificationEvidence,
     list_findings,
     run_hunt,
 )
-from koyote.hunt_ports import (
+from truhowl.hunt_ports import (
     HuntPorts,
     VerifiedRepair,
     seal_ai_patch,
     seal_verified_repair,
 )
-from koyote.patch_writer import PatchResult
+from truhowl.patch_writer import PatchResult
 
 
 def _init_git_repo(path: str) -> None:
     subprocess.run(["git", "init", "-b", "main"], cwd=path, check=True, capture_output=True)
-    subprocess.run(["git", "config", "user.name", "Koyote Test"], cwd=path, check=True, capture_output=True)
-    subprocess.run(["git", "config", "user.email", "test@koyote.dev"], cwd=path, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.name", "Truhowl Test"], cwd=path, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.email", "test@truhowl.dev"], cwd=path, check=True, capture_output=True)
     subprocess.run(["git", "add", "-A"], cwd=path, check=True, capture_output=True)
     subprocess.run(["git", "commit", "-m", "initial"], cwd=path, check=True, capture_output=True)
 
@@ -241,7 +241,7 @@ def test_clean_room_replay_fails_closed_on_synthetic_drift(tmp_path, monkeypatch
     """If an attempt sandbox mysteriously passed verification (e.g. dirty sandbox side effect),
 
     but the candidate diff fails verification when replayed on a fresh baseline,
-    Koyote MUST fail closed and refuse verification.
+    Truhowl MUST fail closed and refuse verification.
     """
     repo = _make_multi_file_repo(tmp_path)
     monkeypatch.setenv("GROQ_API_KEY", "gsk_test123")
@@ -288,7 +288,7 @@ def test_clean_room_replay_fails_closed_on_synthetic_drift(tmp_path, monkeypatch
                 duration_ms=40,
             )
 
-    from koyote.hunt import AIPlannerAuthor, default_ports
+    from truhowl.hunt import AIPlannerAuthor, default_ports
     base_ports = default_ports(hunt_agent.LLMClient(), _MockPlanner())
     fake_verifier = _ReplayFailingVerifier()
     ports = HuntPorts(

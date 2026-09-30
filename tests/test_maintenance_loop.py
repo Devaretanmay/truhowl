@@ -3,8 +3,8 @@ import os
 import shutil
 from unittest.mock import MagicMock, patch
 
-from koyote.maintenance import detect_drift, run_maintenance_cycle
-from koyote.patch_writer import PatchResult
+from truhowl.maintenance import detect_drift, run_maintenance_cycle
+from truhowl.patch_writer import PatchResult
 
 
 def test_detect_drift_in_fixture():
@@ -17,8 +17,8 @@ def test_detect_drift_in_fixture():
 
 
 def test_run_maintenance_cycle_taxonomy_quarantine_without_creds(tmp_path, monkeypatch):
-    monkeypatch.setenv("KOYOTE_CREDENTIALS_FILE", str(tmp_path / "none.json"))
-    for k in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GROQ_API_KEY", "KOYOTE_LLM_KEY"):
+    monkeypatch.setenv("TRUHOWL_CREDENTIALS_FILE", str(tmp_path / "none.json"))
+    for k in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GROQ_API_KEY", "TRUHOWL_LLM_KEY"):
         monkeypatch.delenv(k, raising=False)
     fixture_dir = "trials/fixtures/taxonomy_stripe"
     target_dir = str(tmp_path / "taxonomy_stripe")
@@ -42,7 +42,7 @@ def test_run_maintenance_cycle_taxonomy_quarantine_without_creds(tmp_path, monke
 
 
 def test_run_maintenance_cycle_ai_authored_with_credentials(tmp_path, monkeypatch):
-    monkeypatch.setenv("KOYOTE_CREDENTIALS_FILE", str(tmp_path / "none.json"))
+    monkeypatch.setenv("TRUHOWL_CREDENTIALS_FILE", str(tmp_path / "none.json"))
     monkeypatch.setenv("GROQ_API_KEY", "gsk_test123")
     fixture_dir = "trials/fixtures/taxonomy_stripe"
     target_dir = str(tmp_path / "taxonomy_stripe_ai")
@@ -58,7 +58,7 @@ def test_run_maintenance_cycle_ai_authored_with_credentials(tmp_path, monkeypatc
             rules_applied=["AI-authored Stripe migration"],
         )
     ]
-    with patch("koyote.ai_planner.AIPatchPlanner.from_env", return_value=mock_planner):
+    with patch("truhowl.ai_planner.AIPatchPlanner.from_env", return_value=mock_planner):
         report = run_maintenance_cycle(
             repo_dir=target_dir,
             provider_name="stripe",
@@ -73,8 +73,8 @@ def test_quarantine_reports_no_path(tmp_path, monkeypatch):
     repo = tmp_path / "r"
     repo.mkdir()
     (repo / "package.json").write_text(json.dumps({"dependencies": {"twilio": "^1.0.0"}}))
-    monkeypatch.setenv("KOYOTE_CREDENTIALS_FILE", str(tmp_path / "none.json"))
-    for k in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "KOYOTE_LLM_KEY"):
+    monkeypatch.setenv("TRUHOWL_CREDENTIALS_FILE", str(tmp_path / "none.json"))
+    for k in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "TRUHOWL_LLM_KEY"):
         monkeypatch.delenv(k, raising=False)
     report = run_maintenance_cycle(str(repo), "twilio", from_version="1.0", to_version="2.0")
     assert not report.success

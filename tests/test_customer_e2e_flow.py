@@ -1,19 +1,19 @@
-# Copyright 2026 Koyote Authors
+# Copyright 2026 Truhowl Authors
 # SPDX-License-Identifier: Apache-2.0
 
 import json
 import os
 from unittest.mock import MagicMock, patch
 
-from koyote.ai_planner import AIPatchPlanner
-from koyote.credentials import save_credentials
-from koyote.github.client import GitHubAppClient
-from koyote.github.howl_bot import HowlBot
-from koyote.knowledge import lookup
-from koyote.llm import LLMClient, LLMResponse
-from koyote.maintenance import run_maintenance_cycle
-from koyote.pipeline import TriggerContext
-from koyote.repo_identity import (
+from truhowl.ai_planner import AIPatchPlanner
+from truhowl.credentials import save_credentials
+from truhowl.github.client import GitHubAppClient
+from truhowl.github.howl_bot import HowlBot
+from truhowl.knowledge import lookup
+from truhowl.llm import LLMClient, LLMResponse
+from truhowl.maintenance import run_maintenance_cycle
+from truhowl.pipeline import TriggerContext
+from truhowl.repo_identity import (
     derive_repository_key,
     get_active_repo,
     get_repository,
@@ -75,10 +75,10 @@ def _setup_fixture_repo(tmp_path) -> str:
 def test_customer_e2e_green_flow(tmp_path, monkeypatch):
     home_dir = str(tmp_path / "user_home")
     os.makedirs(home_dir, exist_ok=True)
-    koyote_dir = os.path.join(home_dir, ".koyote")
+    truhowl_dir = os.path.join(home_dir, ".truhowl")
     monkeypatch.setenv("HOME", home_dir)
-    monkeypatch.setenv("KOYOTE_DIR", koyote_dir)
-    monkeypatch.setenv("KOYOTE_CREDENTIALS_FILE", os.path.join(koyote_dir, "credentials.json"))
+    monkeypatch.setenv("TRUHOWL_DIR", truhowl_dir)
+    monkeypatch.setenv("TRUHOWL_CREDENTIALS_FILE", os.path.join(truhowl_dir, "credentials.json"))
 
     save_credentials(provider="groq", api_key="gsk_test_mock_12345", model="llama-3.3-70b-versatile")
     monkeypatch.setenv("GROQ_API_KEY", "gsk_test_mock_12345")
@@ -133,10 +133,10 @@ def test_customer_e2e_green_flow(tmp_path, monkeypatch):
         model="groq/llama-3.3-70b-versatile",
     )
 
-    with patch("koyote.maintenance.AIPatchPlanner.from_env",
+    with patch("truhowl.maintenance.AIPatchPlanner.from_env",
                classmethod(lambda cls, **k: AIPatchPlanner(client=mock_llm_client))):
-        with patch("koyote.maintenance.git_commit_and_push", return_value=True):
-            with patch("koyote.maintenance.gh_create_pr", return_value="https://github.com/acme/billing/pull/42"):
+        with patch("truhowl.maintenance.git_commit_and_push", return_value=True):
+            with patch("truhowl.maintenance.gh_create_pr", return_value="https://github.com/acme/billing/pull/42"):
                 report = run_maintenance_cycle(
                     repo_dir=repo_dir,
                     provider_name="stripe",
@@ -168,10 +168,10 @@ def test_customer_e2e_green_flow(tmp_path, monkeypatch):
 
 def test_customer_e2e_red_path_test_failure_aborts_pr(tmp_path, monkeypatch):
     home_dir = str(tmp_path / "user_home_red")
-    koyote_dir = os.path.join(home_dir, ".koyote")
+    truhowl_dir = os.path.join(home_dir, ".truhowl")
     monkeypatch.setenv("HOME", home_dir)
-    monkeypatch.setenv("KOYOTE_DIR", koyote_dir)
-    monkeypatch.setenv("KOYOTE_CREDENTIALS_FILE", os.path.join(koyote_dir, "credentials.json"))
+    monkeypatch.setenv("TRUHOWL_DIR", truhowl_dir)
+    monkeypatch.setenv("TRUHOWL_CREDENTIALS_FILE", os.path.join(truhowl_dir, "credentials.json"))
     monkeypatch.setenv("GROQ_API_KEY", "gsk_test_mock_12345")
 
     repo_dir = _setup_fixture_repo(tmp_path)
@@ -189,7 +189,7 @@ def test_customer_e2e_red_path_test_failure_aborts_pr(tmp_path, monkeypatch):
         model="groq/llama-3.3-70b-versatile",
     )
 
-    with patch("koyote.maintenance.AIPatchPlanner.from_env",
+    with patch("truhowl.maintenance.AIPatchPlanner.from_env",
                classmethod(lambda cls, **k: AIPatchPlanner(client=bad_llm_client))):
         report = run_maintenance_cycle(
             repo_dir=repo_dir,

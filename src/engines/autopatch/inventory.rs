@@ -58,7 +58,15 @@ impl Inventory {
 }
 
 /// Built-in provider registry. Returns known API providers with their
-fn p(name: &str, pkgs: &[&str], urls: &[&str], methods: &[&str], ver: &str, deadline: &str, guide: &str) -> ProviderMeta {
+fn p(
+    name: &str,
+    pkgs: &[&str],
+    urls: &[&str],
+    methods: &[&str],
+    ver: &str,
+    deadline: &str,
+    guide: &str,
+) -> ProviderMeta {
     ProviderMeta {
         name: name.into(),
         sdk_packages: pkgs.iter().map(|s| s.to_string()).collect(),
@@ -194,7 +202,7 @@ pub fn render_inventory(inv: &Inventory) -> String {
             "[ALERT] {} critical dependencies require immediate attention.\n",
             critical
         ));
-        out.push_str("   Run `koyote autopatch` to generate verified migration PRs.\n");
+        out.push_str("   Run `truhowl autopatch` to generate verified migration PRs.\n");
     }
 
     out
@@ -215,7 +223,7 @@ mod tests {
 
     #[test]
     fn inventory_scan_empty_dir() {
-        let dir = std::env::temp_dir().join("koyote_inv_empty_test");
+        let dir = std::env::temp_dir().join("truhowl_inv_empty_test");
         let _ = std::fs::create_dir_all(&dir);
         let inv = run_inventory(dir.to_str().unwrap());
         assert!(inv.dependencies.is_empty());
@@ -224,7 +232,7 @@ mod tests {
 
     #[test]
     fn inventory_scan_finds_stripe() {
-        let dir = std::env::temp_dir().join("koyote_inv_stripe_test");
+        let dir = std::env::temp_dir().join("truhowl_inv_stripe_test");
         let _ = std::fs::create_dir_all(&dir);
         std::fs::write(
             dir.join("billing.ts"),
@@ -276,7 +284,7 @@ mod tests {
 
     #[test]
     fn inventory_render_contains_providers() {
-        let dir = std::env::temp_dir().join("koyote_inv_render_test");
+        let dir = std::env::temp_dir().join("truhowl_inv_render_test");
         let _ = std::fs::create_dir_all(&dir);
         std::fs::write(
             dir.join("app.py"),
@@ -301,7 +309,7 @@ mod tests {
 
     #[test]
     fn inventory_scan_with_custom_providers() {
-        let dir = std::env::temp_dir().join("koyote_inv_custom_test");
+        let dir = std::env::temp_dir().join("truhowl_inv_custom_test");
         let _ = std::fs::create_dir_all(&dir);
         std::fs::write(
             dir.join("client.ts"),

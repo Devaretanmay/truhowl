@@ -1,12 +1,12 @@
 # Execution-Evidence Compression & Failure Summarization
 
-Sandboxed test suites, build runs, and compiler outputs can easily produce tens of thousands of lines of terminal text. Koyote includes high-speed native Rust compression engines (`src/engines/compression/`) to distill verbose test logs down to high-signal failure traces, stack traces, and verification evidence for LLM maintenance agents and Developer Trust PR receipts without exceeding context limits.
+Sandboxed test suites, build runs, and compiler outputs can easily produce tens of thousands of lines of terminal text. Truhowl includes high-speed native Rust compression engines (`src/engines/compression/`) to distill verbose test logs down to high-signal failure traces, stack traces, and verification evidence for LLM maintenance agents and Developer Trust PR receipts without exceeding context limits.
 
 ---
 
 ## 1. Core Compression Engines
 
-The Koyote Rust core includes four specialized evidence compression engines:
+The Truhowl Rust core includes four specialized evidence compression engines:
 
 1. **LogCompressor & Stack Trace Isolator**: Strips noisy repetitive progress loops, polling logs, and build progress bars while preserving critical error tracebacks, panic messages, failing assertion lines, and exit statuses.
 2. **SmartCrusher (JSON & Contract Compaction)**: Compacts large OpenAPI schemas, dependency trees, and payload arrays into structural schemas and representative records.
@@ -17,10 +17,10 @@ The Koyote Rust core includes four specialized evidence compression engines:
 
 ## 2. Dynamic Content Routing (`route_and_compress`)
 
-Koyote automatically detects the content type of execution output (build logs, JSON, diffs, raw text) and applies the optimal engine:
+Truhowl automatically detects the content type of execution output (build logs, JSON, diffs, raw text) and applies the optimal engine:
 
 ```python
-from koyote._core import route_and_compress
+from truhowl._core import route_and_compress
 
 # Route and compress execution output (test logs, build traces, diffs)
 raw_log = """
@@ -43,7 +43,7 @@ print(compressed_log)
 ## 3. Where Compression Is Wired
 
 * **Compartment outputs**: `Box.enable_compression()` (auto-enabled on
-  `AgentKoyote`) compresses large compartment results above the size
+  `AgentTruhowl`) compresses large compartment results above the size
   threshold; `compressed_outputs` exposes the distilled text.
 * **Hunt verification evidence** uses bounded raw capture instead
   (test output capped per attempt, diff previews capped per PR body),

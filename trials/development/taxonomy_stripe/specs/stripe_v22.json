@@ -1,0 +1,1 @@
+{"openapi": "3.0.0", "info": {"title": "Stripe", "version": "22"}, "paths": {"/v1/charges": {"post": {"operationId": "createCharge", "parameters": [{"name": "amount", "in": "query", "schema": {"type": "string"}}]}}}}

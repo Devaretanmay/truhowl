@@ -1,4 +1,4 @@
-# Copyright 2026 Koyote Authors
+# Copyright 2026 Truhowl Authors
 # SPDX-License-Identifier: Apache-2.0
 """Phase 2: cheap match -> active-work filter -> gated AI -> POTENTIAL. Silent."""
 
@@ -6,10 +6,10 @@ import json
 import os
 import time
 
-from koyote import cross_repo, work_graph
-from koyote.github.pr_bot import handle_push_event
-from koyote.github.provisioning import cached_path
-from koyote.github.push_events import parse_push_payload
+from truhowl import cross_repo, work_graph
+from truhowl.github.pr_bot import handle_push_event
+from truhowl.github.provisioning import cached_path
+from truhowl.github.push_events import parse_push_payload
 
 
 class StubPlanner:
@@ -23,15 +23,15 @@ class StubPlanner:
 
 
 def _env(tmp_path, monkeypatch):
-    monkeypatch.setenv("KOYOTE_WORK_GRAPH_FILE", str(tmp_path / "wg.json"))
-    monkeypatch.setenv("KOYOTE_INSTALLATIONS_DIR", str(tmp_path / "installs"))
-    monkeypatch.setenv("KOYOTE_REPOS_DIR", str(tmp_path / "repos"))
-    os.makedirs(os.environ["KOYOTE_INSTALLATIONS_DIR"], exist_ok=True)
+    monkeypatch.setenv("TRUHOWL_WORK_GRAPH_FILE", str(tmp_path / "wg.json"))
+    monkeypatch.setenv("TRUHOWL_INSTALLATIONS_DIR", str(tmp_path / "installs"))
+    monkeypatch.setenv("TRUHOWL_REPOS_DIR", str(tmp_path / "repos"))
+    os.makedirs(os.environ["TRUHOWL_INSTALLATIONS_DIR"], exist_ok=True)
 
 
 def _install(*repos):
     rec = {"installation_id": "1", "repos": {r: {"state": "READY"} for r in repos}}
-    with open(os.path.join(os.environ["KOYOTE_INSTALLATIONS_DIR"], "1.json"), "w") as f:
+    with open(os.path.join(os.environ["TRUHOWL_INSTALLATIONS_DIR"], "1.json"), "w") as f:
         json.dump(rec, f)
 
 

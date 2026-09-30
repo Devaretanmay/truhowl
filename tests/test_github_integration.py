@@ -3,13 +3,13 @@ import hmac
 import json
 import urllib.request
 
-from koyote.github.client import verify_webhook_signature
-from koyote.github.webhook_server import WebhookServer, handle_webhook_payload
-from koyote.github.trust_pr import generate_trust_pr_markdown, TrustPRMetadata
+from truhowl.github.client import verify_webhook_signature
+from truhowl.github.webhook_server import WebhookServer, handle_webhook_payload
+from truhowl.github.trust_pr import generate_trust_pr_markdown, TrustPRMetadata
 
 
 def test_webhook_signature_verification():
-    secret = "test_koyote_secret_key_123"
+    secret = "test_truhowl_secret_key_123"
     payload = b'{"action": "push", "repository": {"full_name": "owner/repo"}}'
     
     mac = hmac.new(secret.encode("utf-8"), msg=payload, digestmod=hashlib.sha256)
@@ -102,10 +102,10 @@ def test_http_server_delivers_to_handler_unbound(tmp_path):
 
 
 def test_dashboard_renders_state(tmp_path, monkeypatch):
-    from koyote import work_graph
-    from koyote.github.dashboard import collect_dashboard, render_dashboard
-    from koyote.github.push_events import parse_push_payload
-    monkeypatch.setenv("KOYOTE_WORK_GRAPH_FILE", str(tmp_path / "wg.json"))
+    from truhowl import work_graph
+    from truhowl.github.dashboard import collect_dashboard, render_dashboard
+    from truhowl.github.push_events import parse_push_payload
+    monkeypatch.setenv("TRUHOWL_WORK_GRAPH_FILE", str(tmp_path / "wg.json"))
     work_graph.record_push(parse_push_payload({
         "ref": "refs/heads/feature/payments", "before": "0" * 40, "after": "abc123",
         "repository": {"full_name": "acme/api-service"}, "pusher": {"name": "dev1"},
@@ -118,10 +118,10 @@ def test_dashboard_renders_state(tmp_path, monkeypatch):
 
 
 def test_dashboard_ux_elements(tmp_path, monkeypatch):
-    from koyote import work_graph
-    from koyote.github.dashboard import render_dashboard
-    from koyote.github.push_events import parse_push_payload
-    monkeypatch.setenv("KOYOTE_WORK_GRAPH_FILE", str(tmp_path / "wg2.json"))
+    from truhowl import work_graph
+    from truhowl.github.dashboard import render_dashboard
+    from truhowl.github.push_events import parse_push_payload
+    monkeypatch.setenv("TRUHOWL_WORK_GRAPH_FILE", str(tmp_path / "wg2.json"))
     work_graph.record_push(parse_push_payload({
         "ref": "refs/heads/feature/payments", "before": "0" * 40, "after": "abc123",
         "repository": {"full_name": "acme/api-service"}, "pusher": {"name": "dev1"},

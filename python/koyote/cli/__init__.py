@@ -1,1 +1,0 @@
-"""Koyote CLI implementation."""
