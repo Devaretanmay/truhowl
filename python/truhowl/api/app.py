@@ -20,7 +20,7 @@ from typing import Any, Dict, Optional
 
 from fastapi import Body, Header, HTTPException, Request
 from fastapi.applications import FastAPI
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from truhowl.agent import automation as agent_auto
 from truhowl.agent import models as agent_models
@@ -74,6 +74,96 @@ def session(req: Request):
     if not sess:
         raise HTTPException(status_code=401, detail="Unauthorized session")
     return sess
+
+
+@app.get("/api/auth/github/login")
+def github_oauth_login():
+    """Redirect to GitHub OAuth authorization URL."""
+    import secrets
+    client_id = os.environ.get("TRUHOWL_GITHUB_CLIENT_ID")
+    if not client_id:
+        raise HTTPException(status_code=500, detail="TRUHOWL_GITHUB_CLIENT_ID is not configured")
+    state = secrets.token_hex(16)
+    redirect_uri = os.environ.get("TRUHOWL_OAUTH_REDIRECT_URI", "")
+    url = f"https://github.com/login/oauth/authorize?client_id={client_id}&state={state}&scope=user:email"
+    if redirect_uri:
+        url += f"&redirect_uri={redirect_uri}"
+    resp = RedirectResponse(url=url)
+    resp.set_cookie("truhowl_oauth_state", state, httponly=True, max_age=600, samesite="lax")
+    return resp
+
+
+@app.get("/api/auth/github/callback")
+def github_oauth_callback(req: Request, code: Optional[str] = None, state: Optional[str] = None):
+    """Handle GitHub OAuth redirect callback."""
+    if not code:
+        raise HTTPException(status_code=400, detail="OAuth authorization code missing")
+    cookie_state = req.cookies.get("truhowl_oauth_state")
+    if cookie_state and state and cookie_state != state:
+        raise HTTPException(status_code=400, detail="CSRF state verification failed")
+
+    client_id = os.environ.get("TRUHOWL_GITHUB_CLIENT_ID")
+    client_secret = os.environ.get("TRUHOWL_GITHUB_CLIENT_SECRET")
+    if not client_id or not client_secret:
+        raise HTTPException(status_code=500, detail="GitHub OAuth credentials not configured")
+
+    import json
+    import urllib.parse
+    import urllib.request
+    data = urllib.parse.urlencode({
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "code": code,
+    }).encode("utf-8")
+    token_req = urllib.request.Request(
+        "https://github.com/login/oauth/access_token",
+        data=data,
+        headers={"Accept": "application/json", "User-Agent": "Truhowl-Control-Plane/1.2.0"},
+    )
+    token_data = {}
+    try:
+        with urllib.request.urlopen(token_req, timeout=15) as resp:
+            token_data = json.loads(resp.read().decode("utf-8"))
+            access_token = token_data.get("access_token")
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Failed to exchange code for token: {exc}")
+
+    if not access_token:
+        error_msg = token_data.get("error_description") or "OAuth code exchange failed"
+        raise HTTPException(status_code=400, detail=error_msg)
+
+    user_req = urllib.request.Request(
+        "https://api.github.com/user",
+        headers={"Authorization": f"Bearer {access_token}", "User-Agent": "Truhowl-Control-Plane/1.2.0"},
+    )
+    try:
+        with urllib.request.urlopen(user_req, timeout=15) as resp:
+            user_data = json.loads(resp.read().decode("utf-8"))
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Failed to fetch GitHub user identity: {exc}")
+
+    from truhowl.api.auth import generate_session_token
+    user_id = f"usr_gh_{user_data.get('id')}"
+    username = user_data.get("login", "github-user")
+    sess_token = generate_session_token(user_id=user_id, org_id="org_default", username=username)
+
+    redirect_resp = RedirectResponse(url="/", status_code=302)
+    redirect_resp.set_cookie(key="truhowl_session", value=sess_token, httponly=True, samesite="lax", max_age=86400 * 7)
+    redirect_resp.delete_cookie("truhowl_oauth_state")
+    return redirect_resp
+
+
+@app.post("/api/auth/logout")
+def logout(req: Request):
+    """Revoke user session and clear authentication cookie."""
+    import json
+    from truhowl.api.auth import revoke_session
+    token = req.cookies.get("truhowl_session")
+    if token:
+        revoke_session(token)
+    resp = Response(content=json.dumps({"status": "logged_out"}), media_type="application/json")
+    resp.delete_cookie("truhowl_session")
+    return resp
 
 
 @app.get("/api/repositories")

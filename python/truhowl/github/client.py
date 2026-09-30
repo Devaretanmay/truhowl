@@ -17,6 +17,24 @@ import jwt
 _logger = logging.getLogger("truhowl.github.client")
 
 
+def _load_env_file() -> None:
+    for env_name in (".env.local", ".env"):
+        if os.path.isfile(env_name):
+            try:
+                with open(env_name, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if line and not line.startswith("#") and "=" in line:
+                            k, v = line.split("=", 1)
+                            k, v = k.strip(), v.strip().strip("'\"")
+                            if k and k not in os.environ:
+                                os.environ[k] = v
+            except Exception:
+                pass
+
+_load_env_file()
+
+
 def verify_webhook_signature(payload: bytes, signature_header: str | None, secret: str) -> bool:
     """Verify HMAC-SHA256 signature from GitHub webhook (X-Hub-Signature-256)."""
     if not signature_header or not secret:
@@ -54,7 +72,12 @@ class GitHubAppClient:
     ):
         self.token = token or os.environ.get("GITHUB_TOKEN") or os.environ.get("TRUHOWL_GITHUB_TOKEN") or _get_gh_cli_token()
         self.app_id = app_id or os.environ.get("TRUHOWL_GITHUB_APP_ID")
-        self.private_key = private_key or os.environ.get("TRUHOWL_GITHUB_PRIVATE_KEY")
+        self.private_key = (
+            private_key
+            or os.environ.get("TRUHOWL_GITHUB_PRIVATE_KEY")
+            or os.environ.get("TRUHOWL_GITHUB_PRIVATE_KEY_FILE")
+            or os.environ.get("TRUHOWL_GITHUB_PRIVATE_KEY_PATH")
+        )
         self.api_base_url = api_base_url.rstrip("/")
         self.readonly = readonly
 

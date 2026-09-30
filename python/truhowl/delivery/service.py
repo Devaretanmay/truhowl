@@ -62,7 +62,22 @@ def resolve_github_credentials(allow_developer_fallback: bool = True) -> tuple[G
     if token:
         return GitHubCredentials(token=token, source="github_token", is_developer_fallback=False), ""
 
-    if os.environ.get("TRUHOWL_GITHUB_APP_ID") and os.environ.get("TRUHOWL_GITHUB_PRIVATE_KEY"):
+    has_app_key = (
+        os.environ.get("TRUHOWL_GITHUB_PRIVATE_KEY")
+        or os.environ.get("TRUHOWL_GITHUB_PRIVATE_KEY_FILE")
+        or os.environ.get("TRUHOWL_GITHUB_PRIVATE_KEY_PATH")
+    )
+    if os.environ.get("TRUHOWL_GITHUB_APP_ID") and has_app_key:
+        inst_id = os.environ.get("TRUHOWL_GITHUB_INSTALLATION_ID")
+        if inst_id:
+            try:
+                from truhowl.github.client import GitHubAppClient
+                client = GitHubAppClient()
+                gen_token = client.get_installation_access_token(int(inst_id))
+                if gen_token:
+                    return GitHubCredentials(token=gen_token, source="app_installation", is_developer_fallback=False), ""
+            except Exception:
+                pass
         app_token = os.environ.get("TRUHOWL_GITHUB_INSTALLATION_TOKEN") or "app_token_configured"
         return GitHubCredentials(token=app_token, source="app_installation", is_developer_fallback=False), ""
 
@@ -139,7 +154,8 @@ def publish_verified(*, repo_dir: str, provider_display: str,
     # repair context can never be published in a PR description.
     trust_pr_body, _ = redact_secrets(trust_pr_body or "")
 
-    branch = f"truhowl/{provider_display}-v{version_to.replace('.', '-')}"
+    clean_provider = provider_display.replace(" ", "-").replace("/", "-")
+    branch = f"truhowl/{clean_provider}-v{version_to.replace('.', '-')}"
     commit_msg = (
         f"migrate: {provider_display} {version_from} -> {version_to}\n\n"
         f"Detected and patched by Truhowl autonomous maintenance engine.\n"
