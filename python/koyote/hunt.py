@@ -347,7 +347,15 @@ def gather_context(repo_dir: str, finding: HuntFinding) -> HuntContext:
     relevant = list(dict.fromkeys(finding.affected_files or []))[:40]
     if scan_callsites is not None and ScanConfig is not None:
         try:
-            res = scan_callsites(repo_dir, ScanConfig(sdk_names=[finding.provider])) or {}
+            sdk_names = [finding.provider]
+            try:
+                from koyote.providers.registry import get_default_registry
+                spec = get_default_registry().get(finding.provider)
+                if spec and spec.package_name and spec.package_name not in sdk_names:
+                    sdk_names.append(spec.package_name)
+            except Exception:
+                pass
+            res = scan_callsites(repo_dir, ScanConfig(sdk_names=sdk_names)) or {}
             for c in (res.get("callsites", []) or [])[:40]:
                 line = str(c.get("line_content", "")).strip()[:200]
                 symbols.append(

@@ -208,6 +208,20 @@ class ProviderRegistry:
             package_name="twilio",
             docs_url="https://www.twilio.com/docs/libraries/node",
         )
+        twilio_spec.migrations["3.0.0->5.0.0"] = ProviderMigration(
+            from_version="3.85.0",
+            to_version="5.0.0",
+            changelog_url="https://www.twilio.com/docs/libraries/node",
+            description="Twilio Node SDK v3/v4 to v5: modular client and promise-based async API.",
+            rewrites=[
+                RewriteRule(
+                    pattern=r'"twilio":\s*"\^[34]\.\d+\.\d+"',
+                    replacement='"twilio": "^5.0.0"',
+                    file_extensions=[".json"],
+                    description="Bump twilio to ^5.0.0",
+                ),
+            ],
+        )
         self.register(twilio_spec)
 
         resend_spec = ProviderSpec(
@@ -223,6 +237,38 @@ class ProviderRegistry:
             display_name="Supabase JS Client",
             package_name="@supabase/supabase-js",
             docs_url="https://supabase.com/docs/reference/javascript/introduction",
+        )
+        supabase_spec.migrations["1.0.0->2.0.0"] = ProviderMigration(
+            from_version="1.35.0",
+            to_version="2.0.0",
+            changelog_url="https://supabase.com/docs/reference/javascript/v1-to-v2-migration",
+            description="Supabase JS v1 to v2: auth.user() -> auth.getUser(), auth.session() -> auth.getSession(), auth.signIn() -> auth.signInWithPassword().",
+            rewrites=[
+                RewriteRule(
+                    pattern=r'supabase\.auth\.user\(',
+                    replacement='(await supabase.auth.getUser()).data.user',
+                    file_extensions=[".ts", ".tsx", ".js", ".jsx"],
+                    description="Replace synchronous auth.user() with async auth.getUser() (v2 API)",
+                ),
+                RewriteRule(
+                    pattern=r'supabase\.auth\.session\(',
+                    replacement='(await supabase.auth.getSession()).data.session',
+                    file_extensions=[".ts", ".tsx", ".js", ".jsx"],
+                    description="Replace synchronous auth.session() with async auth.getSession() (v2 API)",
+                ),
+                RewriteRule(
+                    pattern=r'supabase\.auth\.signIn\(',
+                    replacement='supabase.auth.signInWithPassword(',
+                    file_extensions=[".ts", ".tsx", ".js", ".jsx"],
+                    description="Replace auth.signIn() with auth.signInWithPassword() (v2 API)",
+                ),
+                RewriteRule(
+                    pattern=r'"@supabase/supabase-js":\s*"\^1\.\d+\.\d+"',
+                    replacement='"@supabase/supabase-js": "^2.0.0"',
+                    file_extensions=[".json"],
+                    description="Bump @supabase/supabase-js to ^2.0.0",
+                ),
+            ],
         )
         self.register(supabase_spec)
 

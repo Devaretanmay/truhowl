@@ -155,7 +155,10 @@ def detect_changes(repo_dir: str, provider_name: str | None = None) -> list[Dete
             manifest_path=d.get("manifest_path", ""),
         )
         try:
-            res = scan_callsites(repo_dir, ScanConfig(sdk_names=[d["provider"]]))
+            sdk_names = [d["provider"]]
+            if d.get("package_name") and d["package_name"] not in sdk_names:
+                sdk_names.append(d["package_name"])
+            res = scan_callsites(repo_dir, ScanConfig(sdk_names=sdk_names))
             callsites = res.get("callsites", [])
         except Exception:
             callsites = []

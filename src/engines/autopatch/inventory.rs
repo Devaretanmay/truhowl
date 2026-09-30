@@ -79,6 +79,8 @@ pub fn builtin_providers() -> Vec<ProviderMeta> {
         p("Anthropic", &["anthropic", "@anthropic-ai/sdk"], &["api.anthropic.com"], &["messages.create", "completions.create"], "2024-10-22", "", "https://docs.anthropic.com/en/docs/about-claude/model-deprecations"),
         p("Twilio", &["twilio"], &["api.twilio.com"], &["messages.create", "calls.create"], "5.x", "2026-04-28", "https://www.twilio.com/docs/global-infrastructure/api-domain-migration-guide"),
         p("GitHub", &["@octokit/rest", "octokit", "PyGithub"], &["api.github.com"], &[], "2022-11-28", "", "https://docs.github.com/en/rest/overview/api-versions"),
+        p("Supabase", &["@supabase/supabase-js", "supabase"], &["supabase.co"], &["auth.getUser", "auth.getSession", "auth.signInWithPassword"], "2.x", "", "https://supabase.com/docs/reference/javascript/v1-to-v2-migration"),
+        p("AWS", &["aws-sdk", "@aws-sdk/client-s3"], &["amazonaws.com"], &[], "3.x", "", "https://docs.aws.amazon.com/sdk-for-javascript/v3/developer-guide/migrating-to-v3.html"),
     ]
 }
 
